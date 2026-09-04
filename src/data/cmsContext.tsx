@@ -1,0 +1,668 @@
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import {
+  HomepageContent,
+  SiteSettings,
+  ProgramItem,
+  BankAccountItem,
+  BankCategoryGroup,
+  OfficialReportItem,
+  DocumentationItem,
+  DonationTransaction,
+  DonorProfile,
+  TestimonialItem,
+  MediaItem,
+} from '../types';
+import {
+  INITIAL_SITE_SETTINGS,
+  INITIAL_HOMEPAGE_CONTENT,
+  INITIAL_CATEGORIES,
+  INITIAL_BANK_ACCOUNTS_DATA,
+  INITIAL_PROGRAMS_DATA,
+  INITIAL_REPORTS_DATA,
+  INITIAL_DOCUMENTATION_DATA,
+  INITIAL_DONATIONS_DATA,
+  INITIAL_DONORS_DATA,
+  INITIAL_TESTIMONIALS_DATA,
+  INITIAL_MEDIA_DATA,
+} from './cmsInitialData';
+
+const LOCAL_STORAGE_KEY = 'irsyadul_amal_cms_state_v1';
+const AUTH_STORAGE_KEY = 'irsyadul_amal_admin_session_v1';
+
+export interface AdminUser {
+  email: string;
+  name: string;
+  role: 'Admin';
+}
+
+interface CMSContextType {
+  siteSettings: SiteSettings;
+  homepageContent: HomepageContent;
+  draftHomepageContent: HomepageContent | null;
+  isDraftModeActive: boolean;
+  programs: ProgramItem[];
+  categories: string[];
+  bankAccounts: BankAccountItem[];
+  bankGroups: BankCategoryGroup[];
+  reports: OfficialReportItem[];
+  documentations: DocumentationItem[];
+  donations: DonationTransaction[];
+  donors: DonorProfile[];
+  testimonials: TestimonialItem[];
+  media: MediaItem[];
+  isAdminLoggedIn: boolean;
+  adminUser: AdminUser | null;
+
+  // Actions
+  loginAdmin: (emailOrUser: string, pass: string) => { success: boolean; message?: string };
+  logoutAdmin: () => void;
+  updateSiteSettings: (settings: Partial<SiteSettings>) => void;
+  updateHomepageContent: (content: Partial<HomepageContent>, publishImmediately?: boolean) => void;
+  saveHomepageDraft: (content: HomepageContent) => void;
+  publishHomepageDraft: () => void;
+  discardHomepageDraft: () => void;
+  
+  // Programs
+  addProgram: (program: ProgramItem) => void;
+  updateProgram: (program: ProgramItem) => void;
+  deleteProgram: (id: string) => void;
+  duplicateProgram: (id: string) => void;
+  
+  // Categories
+  addCategory: (category: string) => void;
+  deleteCategory: (category: string) => void;
+  
+  // Bank accounts
+  addBankAccount: (acc: BankAccountItem) => void;
+  updateBankAccount: (acc: BankAccountItem) => void;
+  deleteBankAccount: (id: string) => void;
+  toggleBankAccountActive: (id: string) => void;
+  
+  // Reports
+  addReport: (report: OfficialReportItem) => void;
+  updateReport: (report: OfficialReportItem) => void;
+  deleteReport: (id: string) => void;
+  
+  // Documentations
+  addDocumentation: (doc: DocumentationItem) => void;
+  updateDocumentation: (doc: DocumentationItem) => void;
+  deleteDocumentation: (id: string) => void;
+  
+  // Donations
+  addDonation: (don: DonationTransaction) => void;
+  updateDonationStatus: (id: string, status: 'Menunggu Verifikasi' | 'Terverifikasi' | 'Ditolak') => void;
+  deleteDonation: (id: string) => void;
+  
+  // Donors
+  addDonor: (donor: DonorProfile) => void;
+  deleteDonor: (id: string) => void;
+  
+  // Testimonials
+  addTestimonial: (t: TestimonialItem) => void;
+  updateTestimonial: (t: TestimonialItem) => void;
+  deleteTestimonial: (id: string) => void;
+  
+  // Media
+  addMedia: (m: MediaItem) => void;
+  updateMedia: (m: MediaItem) => void;
+  deleteMedia: (id: string) => void;
+  mediaAssets: MediaItem[];
+  addMediaAsset: (m: any) => void;
+  updateMediaAsset: (m: any) => void;
+  deleteMediaAsset: (id: string) => void;
+  
+  // System
+  resetToDefaultData: () => void;
+}
+
+const CMSContext = createContext<CMSContextType | undefined>(undefined);
+
+export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Load saved state or default
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_settings`);
+      return saved ? JSON.parse(saved) : INITIAL_SITE_SETTINGS;
+    } catch {
+      return INITIAL_SITE_SETTINGS;
+    }
+  });
+
+  const [homepageContent, setHomepageContent] = useState<HomepageContent>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_homepage`);
+      return saved ? JSON.parse(saved) : INITIAL_HOMEPAGE_CONTENT;
+    } catch {
+      return INITIAL_HOMEPAGE_CONTENT;
+    }
+  });
+
+  const [draftHomepageContent, setDraftHomepageContent] = useState<HomepageContent | null>(null);
+  const [isDraftModeActive, setIsDraftModeActive] = useState(false);
+
+  const [programs, setPrograms] = useState<ProgramItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_programs`);
+      return saved ? JSON.parse(saved) : INITIAL_PROGRAMS_DATA;
+    } catch {
+      return INITIAL_PROGRAMS_DATA;
+    }
+  });
+
+  const [categories, setCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_categories`);
+      return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
+    } catch {
+      return INITIAL_CATEGORIES;
+    }
+  });
+
+  const [bankAccounts, setBankAccounts] = useState<BankAccountItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_banks`);
+      return saved ? JSON.parse(saved) : INITIAL_BANK_ACCOUNTS_DATA;
+    } catch {
+      return INITIAL_BANK_ACCOUNTS_DATA;
+    }
+  });
+
+  const [reports, setReports] = useState<OfficialReportItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_reports`);
+      return saved ? JSON.parse(saved) : INITIAL_REPORTS_DATA;
+    } catch {
+      return INITIAL_REPORTS_DATA;
+    }
+  });
+
+  const [documentations, setDocumentations] = useState<DocumentationItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_documentations`);
+      return saved ? JSON.parse(saved) : INITIAL_DOCUMENTATION_DATA;
+    } catch {
+      return INITIAL_DOCUMENTATION_DATA;
+    }
+  });
+
+  const [donations, setDonations] = useState<DonationTransaction[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_donations`);
+      return saved ? JSON.parse(saved) : INITIAL_DONATIONS_DATA;
+    } catch {
+      return INITIAL_DONATIONS_DATA;
+    }
+  });
+
+  const [donors, setDonors] = useState<DonorProfile[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_donors`);
+      return saved ? JSON.parse(saved) : INITIAL_DONORS_DATA;
+    } catch {
+      return INITIAL_DONORS_DATA;
+    }
+  });
+
+  const [testimonials, setTestimonials] = useState<TestimonialItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_testimonials`);
+      return saved ? JSON.parse(saved) : INITIAL_TESTIMONIALS_DATA;
+    } catch {
+      return INITIAL_TESTIMONIALS_DATA;
+    }
+  });
+
+  const [media, setMedia] = useState<MediaItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_media`);
+      return saved ? JSON.parse(saved) : INITIAL_MEDIA_DATA;
+    } catch {
+      return INITIAL_MEDIA_DATA;
+    }
+  });
+
+  // Auth State
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(() => {
+    try {
+      const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Save to localStorage when state changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_settings`, JSON.stringify(siteSettings));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [siteSettings]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_homepage`, JSON.stringify(homepageContent));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [homepageContent]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_programs`, JSON.stringify(programs));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [programs]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_categories`, JSON.stringify(categories));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [categories]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_banks`, JSON.stringify(bankAccounts));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [bankAccounts]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_reports`, JSON.stringify(reports));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [reports]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_documentations`, JSON.stringify(documentations));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [documentations]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_donations`, JSON.stringify(donations));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [donations]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_donors`, JSON.stringify(donors));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [donors]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_testimonials`, JSON.stringify(testimonials));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [testimonials]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_media`, JSON.stringify(media));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [media]);
+
+  useEffect(() => {
+    try {
+      if (adminUser) {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(adminUser));
+      } else {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [adminUser]);
+
+  // Derived bank category groups
+  const bankGroups: BankCategoryGroup[] = useMemo(() => {
+    const activeAccounts = bankAccounts.filter((a) => a.isActive !== false);
+    
+    // Grouping
+    const umumAccounts = activeAccounts.filter((a) => a.category === 'DONASI UMUM');
+    const yayasanAccounts = activeAccounts.filter((a) => a.category === 'DONASI YAYASAN');
+    const wakafAccounts = activeAccounts.filter((a) => a.category === 'WAKAF AIR BERSIH');
+
+    return [
+      {
+        category: 'DONASI UMUM',
+        description: 'Penyaluran infaq, sedekah umum, dan operasional bantuan kemanusiaan tanggap bencana.',
+        accounts: umumAccounts,
+      },
+      {
+        category: 'DONASI YAYASAN',
+        description: 'Dana amanah pengembangan program dakwah, sosial pembinaan umat, dan kelembagaan.',
+        accounts: yayasanAccounts,
+      },
+      {
+        category: 'WAKAF AIR BERSIH',
+        description: 'Program khusus pembangunan sumur bor, pipanisasi mata air, dan fasilitas sanitasi warga prasejahtera.',
+        accounts: wakafAccounts,
+      },
+    ];
+  }, [bankAccounts]);
+
+  // Auth methods
+  const loginAdmin = (emailOrUser: string, pass: string) => {
+    const cleanedUser = emailOrUser.trim().toLowerCase();
+    // Accept admin or email with password
+    if (
+      (cleanedUser === 'admin' || cleanedUser === 'admin@irsyadulamal.org' || cleanedUser === 'irsyadulamal313@gmail.com') &&
+      (pass === 'admin' || pass === 'admin123' || pass === 'irsyadul2026')
+    ) {
+      const userObj: AdminUser = {
+        email: cleanedUser.includes('@') ? cleanedUser : 'admin@irsyadulamal.org',
+        name: 'Pengelola Irsyadul Amal',
+        role: 'Admin',
+      };
+      setAdminUser(userObj);
+      return { success: true };
+    }
+    return {
+      success: false,
+      message: 'Username/Email atau kata sandi tidak cocok. Gunakan akun admin resmi.',
+    };
+  };
+
+  const logoutAdmin = () => {
+    setAdminUser(null);
+  };
+
+  // Setting actions
+  const updateSiteSettings = (settings: Partial<SiteSettings>) => {
+    setSiteSettings((prev) => {
+      const updated = { ...prev, ...settings };
+      // Update whatsappUrl if whatsapp changed
+      if (settings.whatsapp) {
+        const cleanWa = settings.whatsapp.replace(/\D/g, '');
+        const normalized = cleanWa.startsWith('0') ? '62' + cleanWa.slice(1) : cleanWa;
+        updated.whatsappUrl = `https://wa.me/${normalized}`;
+      }
+      return updated;
+    });
+  };
+
+  const updateHomepageContent = (content: Partial<HomepageContent>, publishImmediately = true) => {
+    if (publishImmediately) {
+      setHomepageContent((prev) => ({ ...prev, ...content }));
+      setDraftHomepageContent(null);
+      setIsDraftModeActive(false);
+    } else {
+      setDraftHomepageContent((prev) => ({ ...(prev || homepageContent), ...content }));
+      setIsDraftModeActive(true);
+    }
+  };
+
+  const saveHomepageDraft = (content: HomepageContent) => {
+    setDraftHomepageContent(content);
+    setIsDraftModeActive(true);
+  };
+
+  const publishHomepageDraft = () => {
+    if (draftHomepageContent) {
+      setHomepageContent(draftHomepageContent);
+      setDraftHomepageContent(null);
+      setIsDraftModeActive(false);
+    }
+  };
+
+  const discardHomepageDraft = () => {
+    setDraftHomepageContent(null);
+    setIsDraftModeActive(false);
+  };
+
+  // Program actions
+  const addProgram = (program: ProgramItem) => {
+    setPrograms((prev) => [program, ...prev]);
+  };
+
+  const updateProgram = (program: ProgramItem) => {
+    setPrograms((prev) => prev.map((p) => (p.id === program.id ? program : p)));
+  };
+
+  const deleteProgram = (id: string) => {
+    setPrograms((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const duplicateProgram = (id: string) => {
+    const target = programs.find((p) => p.id === id);
+    if (!target) return;
+    const duplicated: ProgramItem = {
+      ...target,
+      id: `prog-${Date.now()}`,
+      title: `${target.title} (Salinan)`,
+      slug: `${target.slug || 'program'}-salinan-${Date.now().toString().slice(-4)}`,
+      status: 'DRAFT',
+      isDraft: true,
+    };
+    setPrograms((prev) => [duplicated, ...prev]);
+  };
+
+  // Category actions
+  const addCategory = (category: string) => {
+    const trimmed = category.trim();
+    if (trimmed && !categories.includes(trimmed)) {
+      setCategories((prev) => [...prev, trimmed]);
+    }
+  };
+
+  const deleteCategory = (category: string) => {
+    setCategories((prev) => prev.filter((c) => c !== category));
+  };
+
+  // Bank account actions
+  const addBankAccount = (acc: BankAccountItem) => {
+    setBankAccounts((prev) => [...prev, acc]);
+  };
+
+  const updateBankAccount = (acc: BankAccountItem) => {
+    setBankAccounts((prev) => prev.map((b) => (b.id === acc.id ? acc : b)));
+  };
+
+  const deleteBankAccount = (id: string) => {
+    setBankAccounts((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  const toggleBankAccountActive = (id: string) => {
+    setBankAccounts((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, isActive: b.isActive === false ? true : false } : b))
+    );
+  };
+
+  // Report actions
+  const addReport = (report: OfficialReportItem) => {
+    setReports((prev) => [report, ...prev]);
+  };
+
+  const updateReport = (report: OfficialReportItem) => {
+    setReports((prev) => prev.map((r) => (r.id === report.id ? report : r)));
+  };
+
+  const deleteReport = (id: string) => {
+    setReports((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  // Documentation actions
+  const addDocumentation = (doc: DocumentationItem) => {
+    setDocumentations((prev) => [doc, ...prev]);
+  };
+
+  const updateDocumentation = (doc: DocumentationItem) => {
+    setDocumentations((prev) => prev.map((d) => (d.id === doc.id ? doc : d)));
+  };
+
+  const deleteDocumentation = (id: string) => {
+    setDocumentations((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  // Donation actions
+  const addDonation = (don: DonationTransaction) => {
+    setDonations((prev) => [don, ...prev]);
+  };
+
+  const updateDonationStatus = (
+    id: string,
+    status: 'Menunggu Verifikasi' | 'Terverifikasi' | 'Ditolak'
+  ) => {
+    setDonations((prev) => prev.map((d) => (d.id === id ? { ...d, status } : d)));
+  };
+
+  const deleteDonation = (id: string) => {
+    setDonations((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  // Donor actions
+  const addDonor = (donor: DonorProfile) => {
+    setDonors((prev) => [donor, ...prev]);
+  };
+
+  const deleteDonor = (id: string) => {
+    setDonors((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  // Testimonial actions
+  const addTestimonial = (t: TestimonialItem) => {
+    setTestimonials((prev) => [t, ...prev]);
+  };
+
+  const updateTestimonial = (t: TestimonialItem) => {
+    setTestimonials((prev) => prev.map((item) => (item.id === t.id ? t : item)));
+  };
+
+  const deleteTestimonial = (id: string) => {
+    setTestimonials((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  // Media actions
+  const addMedia = (m: MediaItem) => {
+    setMedia((prev) => [m, ...prev]);
+  };
+
+  const updateMedia = (m: MediaItem) => {
+    setMedia((prev) => prev.map((item) => (item.id === m.id ? m : item)));
+  };
+
+  const deleteMedia = (id: string) => {
+    setMedia((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  // Reset to default
+  const resetToDefaultData = () => {
+    setSiteSettings(INITIAL_SITE_SETTINGS);
+    setHomepageContent(INITIAL_HOMEPAGE_CONTENT);
+    setPrograms(INITIAL_PROGRAMS_DATA);
+    setCategories(INITIAL_CATEGORIES);
+    setBankAccounts(INITIAL_BANK_ACCOUNTS_DATA);
+    setReports(INITIAL_REPORTS_DATA);
+    setDocumentations(INITIAL_DOCUMENTATION_DATA);
+    setDonations(INITIAL_DONATIONS_DATA);
+    setDonors(INITIAL_DONORS_DATA);
+    setTestimonials(INITIAL_TESTIMONIALS_DATA);
+    setMedia(INITIAL_MEDIA_DATA);
+    setDraftHomepageContent(null);
+    setIsDraftModeActive(false);
+
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith(LOCAL_STORAGE_KEY)) {
+        localStorage.removeItem(key);
+      }
+    });
+  };
+
+  const value = {
+    siteSettings,
+    homepageContent: isDraftModeActive && draftHomepageContent ? draftHomepageContent : homepageContent,
+    draftHomepageContent,
+    isDraftModeActive,
+    programs,
+    categories,
+    bankAccounts,
+    bankGroups,
+    reports,
+    documentations,
+    donations,
+    donors,
+    testimonials,
+    media,
+    isAdminLoggedIn: !!adminUser,
+    adminUser,
+
+    loginAdmin,
+    logoutAdmin,
+    updateSiteSettings,
+    updateHomepageContent,
+    saveHomepageDraft,
+    publishHomepageDraft,
+    discardHomepageDraft,
+
+    addProgram,
+    updateProgram,
+    deleteProgram,
+    duplicateProgram,
+
+    addCategory,
+    deleteCategory,
+
+    addBankAccount,
+    updateBankAccount,
+    deleteBankAccount,
+    toggleBankAccountActive,
+
+    addReport,
+    updateReport,
+    deleteReport,
+
+    addDocumentation,
+    updateDocumentation,
+    deleteDocumentation,
+
+    addDonation,
+    updateDonationStatus,
+    deleteDonation,
+
+    addDonor,
+    deleteDonor,
+
+    addTestimonial,
+    updateTestimonial,
+    deleteTestimonial,
+
+    addMedia,
+    updateMedia,
+    deleteMedia,
+    mediaAssets: media,
+    addMediaAsset: addMedia,
+    updateMediaAsset: updateMedia,
+    deleteMediaAsset: deleteMedia,
+
+    resetToDefaultData,
+  };
+
+  return <CMSContext.Provider value={value}>{children}</CMSContext.Provider>;
+};
+
+export const useCMS = () => {
+  const context = useContext(CMSContext);
+  if (!context) {
+    throw new Error('useCMS must be used within a CMSProvider');
+  }
+  return context;
+};
