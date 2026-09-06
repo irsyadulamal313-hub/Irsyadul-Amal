@@ -377,7 +377,7 @@ export const AdminSettingsSection: React.FC<AdminSettingsSectionProps> = ({
               Akun Pengelola Administrator
             </h2>
             <p className="text-xs text-[#647B7C]">
-              Akses khusus pengelola Irsyadul Amal. Default akun: <strong>admin</strong> / <strong>admin123</strong>.
+              Autentikasi administrator dikelola secara aman melalui Supabase Authentication dan tabel admin_users.
             </p>
 
             <div className="p-4 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-between">
@@ -386,12 +386,12 @@ export const AdminSettingsSection: React.FC<AdminSettingsSectionProps> = ({
                   A
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-[#071F20]">Administrator Utama</p>
-                  <p className="text-[11px] text-gray-500 font-mono">admin@irsyadulamal.org / admin</p>
+                  <p className="text-xs font-bold text-[#071F20]">Administrator Terotentikasi</p>
+                  <p className="text-[11px] text-gray-500 font-mono">Dikelola via Supabase Auth</p>
                 </div>
               </div>
               <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                Super Admin Aktif
+                Admin Aktif
               </span>
             </div>
           </div>

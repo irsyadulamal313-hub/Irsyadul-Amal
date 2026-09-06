@@ -14,7 +14,7 @@ export const AdminUsersSection: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<AdminRole>('Admin Konten');
-  const [password, setPassword] = useState('admin123');
+  const [password, setPassword] = useState('');
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -26,7 +26,7 @@ export const AdminUsersSection: React.FC = () => {
     setName('');
     setEmail('');
     setRole('Admin Konten');
-    setPassword('admin123');
+    setPassword('');
     setIsModalOpen(true);
   };
 
@@ -221,7 +221,7 @@ export const AdminUsersSection: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@irsyadulamal.org"
+                  placeholder="pengurus@irsyadulamal.id"
                   className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs outline-none"
                 />
               </div>

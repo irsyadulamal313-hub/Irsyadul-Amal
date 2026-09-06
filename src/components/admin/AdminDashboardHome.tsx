@@ -56,10 +56,10 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
             <span>Panel Administrasi Terpusat</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Dashboard Irsyadul Amal
+            Dashboard Admin
           </h1>
           <p className="text-xs sm:text-sm text-teal-50 leading-relaxed">
-            Kelola seluruh konten, program sosial, data donasi, laporan pertanggungjawaban, dan informasi resmi website tanpa menyentuh kode.
+            Selamat datang di panel pengelolaan Irsyadul Amal. Kelola seluruh konten, program sosial, data donasi, laporan pertanggungjawaban, dan informasi resmi website tanpa menyentuh kode.
           </p>
 
           <div className="pt-3 flex flex-wrap items-center gap-3">

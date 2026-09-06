@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavPage, ProgramItem, DocumentationItem } from './types';
-import { INITIAL_PROGRAMS } from './data/officialData';
+import { useCMS } from './data/cmsContext';
 import { Header } from './components/Header';
 import { BottomNavigation } from './components/BottomNavigation';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
@@ -12,24 +12,102 @@ import { ReportPage } from './pages/ReportPage';
 import { CallCenterPage } from './pages/CallCenterPage';
 import { ProgramDetailModal } from './components/ProgramDetailModal';
 import { DonationActionModal } from './components/DonationActionModal';
-import { AdminPanelModal } from './components/AdminPanelModal';
+import { AdminMainView } from './components/admin/AdminMainView';
+import { AdminLoginView } from './components/admin/AdminLoginView';
+import { AdminSetupView } from './components/admin/AdminSetupView';
+import { AdminForgotPasswordView } from './components/admin/AdminForgotPasswordView';
+import { AdminResetPasswordView } from './components/admin/AdminResetPasswordView';
 import { X, MapPin, Calendar } from 'lucide-react';
 
+export type AppRoute =
+  | 'public'
+  | 'admin'
+  | 'admin_login'
+  | 'admin_setup'
+  | 'admin_forgot_password'
+  | 'admin_reset_password';
+
+function parseCurrentRoute(): AppRoute {
+  const path = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+
+  if (path === '/admin/setup' || hash === '#/admin/setup' || hash === '#admin/setup') {
+    return 'admin_setup';
+  }
+  if (
+    path === '/admin/forgot-password' ||
+    hash === '#/admin/forgot-password' ||
+    hash === '#admin/forgot-password'
+  ) {
+    return 'admin_forgot_password';
+  }
+  if (
+    path === '/admin/reset-password' ||
+    hash === '#/admin/reset-password' ||
+    hash === '#admin/reset-password'
+  ) {
+    return 'admin_reset_password';
+  }
+  if (path === '/admin/login' || hash === '#/admin/login' || hash === '#admin/login') {
+    return 'admin_login';
+  }
+  if (path === '/admin' || hash === '#/admin' || hash === '#admin' || path.startsWith('/admin/')) {
+    return 'admin';
+  }
+  return 'public';
+}
+
 export default function App() {
+  const { programs, isAdminLoggedIn } = useCMS();
+  const [currentRoute, setCurrentRoute] = useState<AppRoute>(parseCurrentRoute);
   const [currentPage, setCurrentPage] = useState<NavPage>('beranda');
-  const [programs, setPrograms] = useState<ProgramItem[]>(INITIAL_PROGRAMS);
 
   // Modals state
   const [selectedProgramDetail, setSelectedProgramDetail] = useState<ProgramItem | null>(null);
   const [quickDonationProgram, setQuickDonationProgram] = useState<ProgramItem | null>(null);
   const [isQuickDonationOpen, setIsQuickDonationOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [selectedLightboxPhoto, setSelectedLightboxPhoto] = useState<DocumentationItem | null>(null);
 
-  // Handlers
-  const handleNavigate = (page: NavPage) => {
+  // Sync route with browser history
+  const navigateToRoute = (route: AppRoute, updateHistory = true) => {
+    setCurrentRoute(route);
+    if (updateHistory) {
+      let targetPath = '/';
+      if (route === 'admin') targetPath = '/admin';
+      else if (route === 'admin_login') targetPath = '/admin/login';
+      else if (route === 'admin_setup') targetPath = '/admin/setup';
+      else if (route === 'admin_forgot_password') targetPath = '/admin/forgot-password';
+      else if (route === 'admin_reset_password') targetPath = '/admin/reset-password';
+
+      window.history.pushState(null, '', targetPath);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentRoute(parseCurrentRoute());
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
+
+  // Handlers for public page navigation
+  const handleNavigatePage = (page: NavPage) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenAdmin = () => {
+    if (isAdminLoggedIn) {
+      navigateToRoute('admin');
+    } else {
+      navigateToRoute('admin_login');
+    }
   };
 
   const handleOpenQuickDonation = (program?: ProgramItem) => {
@@ -37,24 +115,73 @@ export default function App() {
     setIsQuickDonationOpen(true);
   };
 
-  const handleAddProgram = (newProg: ProgramItem) => {
-    setPrograms((prev) => [newProg, ...prev]);
-  };
+  // 1. ADMIN SETUP VIEW (/admin/setup)
+  if (currentRoute === 'admin_setup') {
+    return (
+      <AdminSetupView
+        onReturnToLogin={() => navigateToRoute('admin_login')}
+        onReturnToPublic={() => navigateToRoute('public')}
+      />
+    );
+  }
 
-  const handleUpdateProgram = (updated: ProgramItem) => {
-    setPrograms((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-  };
+  // 2. ADMIN FORGOT PASSWORD VIEW (/admin/forgot-password)
+  if (currentRoute === 'admin_forgot_password') {
+    return (
+      <AdminForgotPasswordView
+        onReturnToLogin={() => navigateToRoute('admin_login')}
+        onReturnToPublic={() => navigateToRoute('public')}
+      />
+    );
+  }
 
-  const handleDeleteProgram = (id: string) => {
-    setPrograms((prev) => prev.filter((p) => p.id !== id));
-  };
+  // 3. ADMIN RESET PASSWORD VIEW (/admin/reset-password)
+  if (currentRoute === 'admin_reset_password') {
+    return (
+      <AdminResetPasswordView
+        onReturnToLogin={() => navigateToRoute('admin_login')}
+        onReturnToPublic={() => navigateToRoute('public')}
+      />
+    );
+  }
 
+  // 4. ADMIN LOGIN VIEW (/admin/login)
+  if (currentRoute === 'admin_login') {
+    if (isAdminLoggedIn) {
+      // Already authenticated, redirect to /admin
+      navigateToRoute('admin', false);
+      return null;
+    }
+    return (
+      <AdminLoginView
+        onReturnToPublic={() => navigateToRoute('public')}
+        onLoginSuccess={() => navigateToRoute('admin')}
+        onGoToSetup={() => navigateToRoute('admin_setup')}
+        onGoToForgotPassword={() => navigateToRoute('admin_forgot_password')}
+      />
+    );
+  }
+
+  // 5. ADMIN DASHBOARD VIEW (/admin)
+  if (currentRoute === 'admin') {
+    if (!isAdminLoggedIn) {
+      // Not authenticated, redirect to /admin/login
+      navigateToRoute('admin_login', false);
+      return null;
+    }
+    return (
+      <AdminMainView onReturnToPublic={() => navigateToRoute('public')} />
+    );
+  }
+
+  // 3. PUBLIC WEBSITE VIEW (/)
   return (
     <div className="min-h-screen bg-[#F0FAFA] text-[#071F20] font-sans flex flex-col selection:bg-[#008284] selection:text-white">
-      {/* 1. TOP HEADER with 5 Navigation Menus */}
+      {/* 1. TOP HEADER with 5 Navigation Menus + Visible "⚙ Admin" button */}
       <Header
         currentPage={currentPage}
-        onNavigate={handleNavigate}
+        onNavigate={handleNavigatePage}
+        onOpenAdmin={handleOpenAdmin}
       />
 
       {/* 2. MAIN PAGE CONTENT */}
@@ -62,7 +189,7 @@ export default function App() {
         {currentPage === 'beranda' && (
           <HomePage
             programs={programs}
-            onNavigate={handleNavigate}
+            onNavigate={handleNavigatePage}
             onSelectProgramDetail={(prog) => setSelectedProgramDetail(prog)}
             onOpenQuickDonation={handleOpenQuickDonation}
           />
@@ -95,14 +222,14 @@ export default function App() {
 
       {/* 3. FOOTER */}
       <Footer
-        onNavigate={handleNavigate}
-        onOpenAdmin={() => setIsAdminOpen(true)}
+        onNavigate={handleNavigatePage}
+        onOpenAdmin={handleOpenAdmin}
       />
 
       {/* 4. MOBILE BOTTOM NAVIGATION (EXACT 5 MENUS) */}
       <BottomNavigation
         currentPage={currentPage}
-        onNavigate={handleNavigate}
+        onNavigate={handleNavigatePage}
       />
 
       {/* 5. FLOATING WHATSAPP BUTTON (ON ALL PAGES) */}
@@ -127,16 +254,6 @@ export default function App() {
         programs={programs}
       />
 
-      {/* Admin Panel Modal (Supabase Ready) */}
-      <AdminPanelModal
-        isOpen={isAdminOpen}
-        onClose={() => setIsAdminOpen(false)}
-        programs={programs}
-        onAddProgram={handleAddProgram}
-        onUpdateProgram={handleUpdateProgram}
-        onDeleteProgram={handleDeleteProgram}
-      />
-
       {/* Photo Lightbox */}
       {selectedLightboxPhoto && (
         <div
@@ -156,7 +273,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setSelectedLightboxPhoto(null)}
-                className="absolute top-3 right-3 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full"
+                className="absolute top-3 right-3 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>

@@ -56,6 +56,7 @@ export interface OfficialReportItem {
   fileSize?: string;
   fileType?: string;
   downloadUrl?: string;
+  fileUrl?: string;
   description: string;
   published: boolean;
   documentationUrls?: string[];

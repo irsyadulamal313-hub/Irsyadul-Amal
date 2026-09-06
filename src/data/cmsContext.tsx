@@ -26,13 +26,17 @@ import {
   INITIAL_MEDIA_DATA,
 } from './cmsInitialData';
 
+import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
+import { signOutAdminAuth, verifyCurrentAdminSession } from '../lib/adminAuth';
+
 const LOCAL_STORAGE_KEY = 'irsyadul_amal_cms_state_v1';
-const AUTH_STORAGE_KEY = 'irsyadul_amal_admin_session_v1';
 
 export interface AdminUser {
+  id?: string;
   email: string;
   name: string;
-  role: 'Admin';
+  role: 'Admin' | 'super_admin' | 'admin' | string;
+  username?: string;
 }
 
 interface CMSContextType {
@@ -221,15 +225,64 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  // Auth State
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(() => {
-    try {
-      const saved = localStorage.getItem(AUTH_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
+  // Auth State (Directly synchronized with Supabase Auth session)
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
+
+  // Synchronize admin session with Supabase Auth
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncSession = async () => {
+      const verified = await verifyCurrentAdminSession();
+      if (isMounted) {
+        if (verified.isValid && verified.user) {
+          setAdminUser({
+            id: verified.user.id,
+            email: verified.user.email,
+            name: verified.user.name,
+            role: verified.user.role,
+            username: verified.user.name,
+          });
+        } else {
+          setAdminUser(null);
+        }
+      }
+    };
+
+    syncSession();
+
+    const client = getSupabase();
+    if (client) {
+      const { data: authListener } = client.auth.onAuthStateChange(async (event, session) => {
+        if (!isMounted) return;
+        if (event === 'SIGNED_IN' && session?.user) {
+          const verified = await verifyCurrentAdminSession();
+          if (verified.isValid && verified.user) {
+            setAdminUser({
+              id: verified.user.id,
+              email: verified.user.email,
+              name: verified.user.name,
+              role: verified.user.role,
+              username: verified.user.name,
+            });
+          } else {
+            setAdminUser(null);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setAdminUser(null);
+        }
+      });
+
+      return () => {
+        isMounted = false;
+        authListener?.subscription.unsubscribe();
+      };
     }
-  });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Save to localStorage when state changes
   useEffect(() => {
@@ -320,18 +373,6 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [media]);
 
-  useEffect(() => {
-    try {
-      if (adminUser) {
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(adminUser));
-      } else {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, [adminUser]);
-
   // Derived bank category groups
   const bankGroups: BankCategoryGroup[] = useMemo(() => {
     const activeAccounts = bankAccounts.filter((a) => a.isActive !== false);
@@ -360,29 +401,30 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ];
   }, [bankAccounts]);
 
-  // Auth methods
-  const loginAdmin = (emailOrUser: string, pass: string) => {
-    const cleanedUser = emailOrUser.trim().toLowerCase();
-    // Accept admin or email with password
-    if (
-      (cleanedUser === 'admin' || cleanedUser === 'admin@irsyadulamal.org' || cleanedUser === 'irsyadulamal313@gmail.com') &&
-      (pass === 'admin' || pass === 'admin123' || pass === 'irsyadul2026')
-    ) {
-      const userObj: AdminUser = {
-        email: cleanedUser.includes('@') ? cleanedUser : 'admin@irsyadulamal.org',
-        name: 'Pengelola Irsyadul Amal',
-        role: 'Admin',
-      };
-      setAdminUser(userObj);
+  // Auth methods - Synchronized with Supabase Auth
+  const loginAdmin = (userOrEmail: string | AdminUser, _pass?: string) => {
+    if (typeof userOrEmail === 'object' && userOrEmail !== null) {
+      setAdminUser(userOrEmail);
+      return { success: true };
+    }
+    const cleanEmail = (typeof userOrEmail === 'string' ? userOrEmail : '').trim();
+    if (cleanEmail) {
+      setAdminUser({
+        email: cleanEmail,
+        name: 'Administrator',
+        role: 'admin',
+        username: 'admin',
+      });
       return { success: true };
     }
     return {
       success: false,
-      message: 'Username/Email atau kata sandi tidak cocok. Gunakan akun admin resmi.',
+      message: 'Email admin tidak valid.',
     };
   };
 
   const logoutAdmin = () => {
+    signOutAdminAuth();
     setAdminUser(null);
   };
 
