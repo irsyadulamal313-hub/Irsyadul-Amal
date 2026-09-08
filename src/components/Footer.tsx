@@ -52,7 +52,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenAdmin }) => {
           {/* Navigasi Wajib (5 Menu) */}
           <div className="md:col-span-3 space-y-3">
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider">
-              Navigasi Utama
+              Menu Navigasi
             </h4>
             <ul className="space-y-2 text-xs">
               {navItems.map((item) => (

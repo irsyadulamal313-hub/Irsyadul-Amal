@@ -14,7 +14,7 @@ export const FloatingWhatsApp: React.FC = () => {
   return (
     <aside
       aria-label="Kontak Cepat WhatsApp"
-      className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 flex items-center group"
+      className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center group"
     >
       {/* Tooltip on hover on desktop */}
       <span className="hidden sm:inline-block mr-2 px-3 py-1.5 bg-gray-900/90 text-white text-xs font-semibold rounded-xl shadow-lg backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">

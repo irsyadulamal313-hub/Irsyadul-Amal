@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { NavPage, ProgramItem, DocumentationItem } from './types';
 import { useCMS } from './data/cmsContext';
 import { Header } from './components/Header';
-import { BottomNavigation } from './components/BottomNavigation';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Footer } from './components/Footer';
 import { HomePage } from './pages/HomePage';
@@ -196,16 +195,16 @@ export default function App() {
 
   // 3. PUBLIC WEBSITE VIEW (/)
   return (
-    <div className="min-h-screen bg-[#F0FAFA] text-[#071F20] font-sans flex flex-col selection:bg-[#008284] selection:text-white">
-      {/* 1. TOP HEADER with 5 Navigation Menus + Visible "⚙ Admin" button */}
+    <div className="w-full min-h-screen bg-[#F0FAFA] text-[#071F20] font-sans flex flex-col selection:bg-[#008284] selection:text-white">
+      {/* 1. TOP HEADER with 5 Navigation Menus + Visible Admin button */}
       <Header
         currentPage={currentPage}
         onNavigate={handleNavigatePage}
         onOpenAdmin={handleOpenAdmin}
       />
 
-      {/* 2. MAIN PAGE CONTENT */}
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      {/* 2. MAIN PAGE CONTENT: mobile margin around 12px (px-3) so hero is calc(100% - 24px) */}
+      <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
         {currentPage === 'beranda' && (
           <HomePage
             programs={programs}
@@ -246,16 +245,10 @@ export default function App() {
         onOpenAdmin={handleOpenAdmin}
       />
 
-      {/* 4. MOBILE BOTTOM NAVIGATION (EXACT 5 MENUS) */}
-      <BottomNavigation
-        currentPage={currentPage}
-        onNavigate={handleNavigatePage}
-      />
-
-      {/* 5. FLOATING WHATSAPP BUTTON (ON ALL PAGES) */}
+      {/* 4. FLOATING WHATSAPP BUTTON (ON ALL PAGES) */}
       <FloatingWhatsApp />
 
-      {/* 6. MODALS */}
+      {/* 5. MODALS */}
       {/* Detail Program Modal */}
       <ProgramDetailModal
         program={selectedProgramDetail}
@@ -277,7 +270,7 @@ export default function App() {
       {/* Photo Lightbox */}
       {selectedLightboxPhoto && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs animate-in fade-in"
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs animate-in fade-in"
           onClick={() => setSelectedLightboxPhoto(null)}
         >
           <div

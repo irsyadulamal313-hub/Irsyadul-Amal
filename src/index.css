@@ -1,7 +1,17 @@
 @import "tailwindcss";
 
 @layer base {
-  html, body {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    overflow-x: hidden;
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #071F20;
     background-color: #F0FAFA;
@@ -9,7 +19,12 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Refined typographic hierarchy as requested: headings around 600 weight, never 900 */
+  #root {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Refined typographic hierarchy: headings around 600-650 weight */
   h1 {
     font-weight: 650;
     letter-spacing: -0.025em;
@@ -23,3 +38,4 @@
     letter-spacing: -0.015em;
   }
 }
+

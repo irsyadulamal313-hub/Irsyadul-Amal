@@ -81,8 +81,8 @@ export const HomePage: React.FC<HomePageProps> = ({
         </svg>
       </div>
 
-      <div className="relative max-w-5xl mx-auto px-5 sm:px-8 py-10 sm:py-16 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        <div className="lg:col-span-7 space-y-5 text-center lg:text-left">
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-8 py-8 sm:py-14 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
+        <div className="lg:col-span-7 space-y-4 sm:space-y-5 text-center lg:text-left">
           {homepageContent.heroBadge && (
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-xs text-xs font-medium text-emerald-100 border border-white/20">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
