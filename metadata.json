@@ -1,6 +1,6 @@
 {
-  "name": "IRSYADUL AMAL - Lembaga Sosial & Kemanusiaan",
-  "description": "Lembaga Sosial & Kemanusiaan Irsyadul Amal - Kp. Malajati, Jati, Kec. Tarogong Kaler, Kabupaten Garut, Jawa Barat.",
+  "name": "IRSYADUL AMAL – Lembaga Sosial & Kemanusiaan",
+  "description": "Lembaga Sosial & Kemanusiaan IRSYADUL AMAL",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

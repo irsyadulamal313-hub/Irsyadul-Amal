@@ -104,6 +104,21 @@ export default function App() {
     };
   }, []);
 
+  // SEO & Document Title Sync
+  useEffect(() => {
+    if (currentRoute === 'admin') {
+      document.title = 'Admin Dashboard – IRSYADUL AMAL';
+    } else if (currentRoute === 'admin_login') {
+      document.title = 'Login Admin – IRSYADUL AMAL';
+    } else if (currentRoute === 'admin_setup') {
+      document.title = 'Setup Akun Admin – IRSYADUL AMAL';
+    } else if (currentRoute === 'admin_forgot_password' || currentRoute === 'reset_password') {
+      document.title = 'Reset Kata Sandi – IRSYADUL AMAL';
+    } else {
+      document.title = 'IRSYADUL AMAL – Lembaga Sosial & Kemanusiaan';
+    }
+  }, [currentRoute]);
+
   // Handlers for public page navigation
   const handleNavigatePage = (page: NavPage) => {
     setCurrentPage(page);
