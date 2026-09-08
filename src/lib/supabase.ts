@@ -501,29 +501,29 @@ CREATE POLICY "Admin Delete Media Storage" ON storage.objects FOR DELETE TO auth
 `;
 
 /**
- * 8. SQL MIGRATION PERBAIKAN RESMI: TABEL ADMIN_USERS, BOOTSTRAP AMAN, & RLS NON-REKURSIF
+ * SQL MIGRATION PERBAIKAN RESMI: TABEL ADMIN_USERS, BOOTSTRAP AMAN, & RLS NON-REKURSIF
  * Siap dijalankan di Supabase Dashboard -> SQL Editor -> Run
- * Menghubungkan akun Supabase Auth irsyadulamal313@gmail.com langsung ke admin_users
  */
 export const ADMIN_USERS_SQL_MIGRATION = `-- ==============================================================================
--- SQL MIGRATION PERBAIKAN ROLE ADMINISTRATOR SUPABASE - LKS IRSYADUL AMAL
+-- SQL MIGRATION RESMI TABEL ADMIN_USERS - LKS IRSYADUL AMAL
 -- Jalankan skrip ini di Supabase Dashboard -> SQL Editor -> Run
 -- ==============================================================================
 
 -- 1. Ekstensi pgcrypto untuk UUID
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. Buat tabel admin_users jika belum ada
+-- 2. Buat tabel admin_users sesuai struktur standar
 CREATE TABLE IF NOT EXISTS public.admin_users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID UNIQUE NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
-    role VARCHAR(50) DEFAULT 'admin' NOT NULL CHECK (role IN ('admin', 'super_admin')),
+    role VARCHAR(50) DEFAULT 'admin' NOT NULL,
     is_active BOOLEAN DEFAULT TRUE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Pastikan kolom is_active tersedia jika tabel sudah ada sebelumnya
+ALTER TABLE public.admin_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 
 -- Index pencarian cepat
 CREATE INDEX IF NOT EXISTS idx_admin_users_user_id ON public.admin_users(user_id);
@@ -567,7 +567,10 @@ FOR INSERT
 TO authenticated
 WITH CHECK (
     auth.uid() = user_id
-    AND NOT EXISTS (SELECT 1 FROM public.admin_users WHERE is_active = true)
+    AND NOT EXISTS (
+      SELECT 1 FROM public.admin_users 
+      WHERE is_active = true
+    )
 );
 
 -- 8. PostgreSQL Function SECURITY DEFINER untuk Bootstrap Administrator Pertama
@@ -588,10 +591,13 @@ BEGIN
     RAISE EXCEPTION 'Pengguna belum terautentikasi';
   END IF;
 
-  SELECT count(*) INTO v_active_count FROM public.admin_users WHERE is_active = true;
+  SELECT count(*) INTO v_active_count 
+  FROM public.admin_users 
+  WHERE is_active = true;
+
   IF v_active_count > 0 THEN
     SELECT * INTO v_admin FROM public.admin_users WHERE user_id = v_uid;
-    IF FOUND AND v_admin.is_active = true AND v_admin.role IN ('admin', 'super_admin') THEN
+    IF FOUND AND v_admin.is_active = true AND LOWER(v_admin.role) = 'admin' THEN
       RETURN jsonb_build_object('success', true, 'message', 'Akun Anda sudah terdaftar sebagai administrator aktif.', 'user_id', v_uid);
     END IF;
     RAISE EXCEPTION 'Setup administrator pertama telah ditutup karena sudah ada administrator aktif.';
@@ -605,13 +611,13 @@ BEGIN
   INSERT INTO public.admin_users (user_id, name, email, role, is_active)
   VALUES (
     v_uid,
-    COALESCE(NULLIF(trim(p_name), ''), 'Administrator Utama'),
+    COALESCE(NULLIF(trim(p_name), ''), 'Administrator'),
     v_email,
     'admin',
     true
   )
   ON CONFLICT (user_id) DO UPDATE
-  SET role = 'admin', is_active = true, updated_at = now()
+  SET role = 'admin', is_active = true
   RETURNING * INTO v_admin;
 
   RETURN jsonb_build_object('success', true, 'message', 'Administrator pertama berhasil didaftarkan.', 'user_id', v_uid);
@@ -631,23 +637,4 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.is_admin_setup_available() TO anon, authenticated;
-
--- ==============================================================================
--- 10. PEMETAAN OTOMATIS AKUN AUTH: irsyadulamal313@gmail.com
--- Menghubungkan user di auth.users yang sudah ada langsung ke tabel admin_users
--- ==============================================================================
-DELETE FROM public.admin_users 
-WHERE lower(email) = 'irsyadulamal313@gmail.com' AND user_id NOT IN (SELECT id FROM auth.users WHERE lower(email) = 'irsyadulamal313@gmail.com');
-
-INSERT INTO public.admin_users (user_id, name, email, role, is_active)
-SELECT 
-    id,
-    COALESCE(raw_user_meta_data->>'name', 'Administrator Utama Irsyadul Amal'),
-    email,
-    'admin',
-    true
-FROM auth.users
-WHERE lower(email) = 'irsyadulamal313@gmail.com'
-ON CONFLICT (user_id) DO UPDATE
-SET role = 'admin', is_active = true, updated_at = now();
 `;

@@ -165,6 +165,10 @@ export interface HomepageContent {
   bannerEnabled?: boolean;
   sectionsVisibility?: Partial<SectionVisibility>;
   sectionsOrder?: string[];
+  statsTotalDonations?: string;
+  statsActivePrograms?: string;
+  statsBeneficiaries?: string;
+  statsDonors?: string;
 }
 
 export interface SiteSettings {

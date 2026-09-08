@@ -117,7 +117,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenAdmin }) => {
                 onClick={onOpenAdmin}
                 className="text-[#A0BABA] hover:text-white underline flex items-center gap-1 cursor-pointer font-normal"
               >
-                <Settings className="w-3 h-3" />
+                <UserCog className="w-3 h-3" />
                 <span>Dashboard Admin</span>
               </button>
             )}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Heart, ShieldCheck, PhoneCall, Home, Layers, FileText, UserCog } from 'lucide-react';
+import { Menu, X, Heart, ShieldCheck, PhoneCall, Home, Layers, FileText, UserCircle } from 'lucide-react';
 import { IrsyadulAmalLogo } from './IrsyadulAmalLogo';
 import { useCMS } from '../data/cmsContext';
 import { NavPage } from '../types';
@@ -83,16 +83,16 @@ export const Header: React.FC<HeaderProps> = ({
             DONASI SEKARANG
           </button>
 
-          {/* Admin Dashboard Access Button: Icon-only, elegant rounded-xl */}
+          {/* Admin Dashboard Access Button: Icon-only, elegant circular button */}
           <div className="relative group ml-1.5 sm:ml-2">
             <button
               type="button"
               onClick={onOpenAdmin}
               title="Dashboard Admin"
               aria-label="Dashboard Admin"
-              className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-[#EAF5F5] hover:bg-[#008284] text-[#008284] hover:text-white border border-[#BCE4E4] hover:border-[#008284] transition-all duration-200 shadow-2xs hover:shadow-sm flex items-center justify-center cursor-pointer active:scale-95"
+              className="w-9 h-9 lg:w-10 lg:h-10 rounded-full bg-[#EAF5F5] hover:bg-[#008284] text-[#008284] hover:text-white border border-[#BCE4E4] hover:border-[#008284] transition-all duration-200 shadow-2xs hover:shadow-sm flex items-center justify-center cursor-pointer active:scale-95"
             >
-              <UserCog className="w-4.5 h-4.5 lg:w-5 lg:h-5 stroke-[2] transition-transform duration-200 group-hover:scale-105" />
+              <UserCircle className="w-5 h-5 lg:w-5.5 lg:h-5.5 stroke-[2] transition-transform duration-200 group-hover:scale-105" />
             </button>
             {/* Elegant Floating Tooltip */}
             <div className="pointer-events-none absolute -bottom-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-150 transform scale-95 group-hover:scale-100 z-50">
@@ -105,15 +105,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right on Mobile: Admin Button & Hamburger Menu */}
         <div className="flex md:hidden items-center gap-2">
-          <button
-            type="button"
-            onClick={onOpenAdmin}
-            title="Dashboard Admin"
-            aria-label="Dashboard Admin"
-            className="w-9 h-9 rounded-xl bg-[#EAF5F5] hover:bg-[#008284] text-[#008284] hover:text-white border border-[#BCE4E4] hover:border-[#008284] transition-all duration-200 shadow-2xs flex items-center justify-center cursor-pointer active:scale-95"
-          >
-            <UserCog className="w-4.5 h-4.5 stroke-[2]" />
-          </button>
+          <div className="relative group">
+            <button
+              type="button"
+              onClick={onOpenAdmin}
+              title="Dashboard Admin"
+              aria-label="Dashboard Admin"
+              className="w-9 h-9 rounded-full bg-[#EAF5F5] hover:bg-[#008284] text-[#008284] hover:text-white border border-[#BCE4E4] hover:border-[#008284] transition-all duration-200 shadow-2xs flex items-center justify-center cursor-pointer active:scale-95"
+            >
+              <UserCircle className="w-5 h-5 stroke-[2]" />
+            </button>
+          </div>
 
           <button
             type="button"
@@ -219,9 +221,9 @@ export const Header: React.FC<HeaderProps> = ({
                   setIsMobileMenuOpen(false);
                   onOpenAdmin();
                 }}
-                className="text-[#008284] font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-[#008284] font-semibold hover:underline flex items-center gap-1.5 cursor-pointer"
               >
-                <UserCog className="w-3.5 h-3.5" />
+                <UserCircle className="w-4 h-4" />
                 <span>Dashboard Admin</span>
               </button>
             </div>

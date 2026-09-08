@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  Database,
+  RefreshCw,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { AdminMenuKey } from './AdminLayout';
@@ -27,7 +29,33 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
   onNavigateMenu,
   onReturnToPublic,
 }) => {
-  const { programs, donations, donors, reports, siteSettings, homepageContent } = useCMS();
+  const {
+    programs,
+    donations,
+    donors,
+    reports,
+    siteSettings,
+    homepageContent,
+    isSupabaseConnected,
+    isSupabaseLoading,
+    syncAllToSupabase,
+  } = useCMS();
+
+  const [isSyncing, setIsSyncing] = React.useState(false);
+  const [syncStatus, setSyncStatus] = React.useState<{ success: boolean; message: string } | null>(null);
+
+  const handleSyncToSupabase = async () => {
+    setIsSyncing(true);
+    setSyncStatus(null);
+    try {
+      const res = await syncAllToSupabase();
+      setSyncStatus(res);
+    } catch (err: any) {
+      setSyncStatus({ success: false, message: err?.message || 'Sinkronisasi gagal.' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Calculate verified donation total without faking
   const verifiedDonations = donations.filter((d) => d.status === 'Terverifikasi');
@@ -84,6 +112,53 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
         <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-12 translate-y-12">
           <ShieldCheck className="w-64 h-64 text-white" />
         </div>
+      </div>
+
+      {/* Supabase Dynamic Database Sync Banner */}
+      <div className="bg-white border border-[#E0EAEA] rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-xl ${isSupabaseConnected ? 'bg-teal-50 text-[#008284]' : 'bg-amber-50 text-amber-600'}`}>
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-sm text-[#071F20]">Database Supabase PostgreSQL</h3>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isSupabaseConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                  {isSupabaseConnected ? 'Terkoneksi' : 'Kredensial Belum Terdeteksi'}
+                </span>
+              </div>
+              <p className="text-xs text-[#647B7C] mt-0.5">
+                {isSupabaseLoading
+                  ? 'Sedang memuat data dari Supabase...'
+                  : isSupabaseConnected
+                  ? 'Website publik memuat data dinamis langsung dari tabel Supabase.'
+                  : 'Pastikan file .env memiliki VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSyncToSupabase}
+            disabled={isSyncing || !isSupabaseConnected}
+            className="px-4 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 disabled:opacity-50 text-[#008284] text-xs font-bold flex items-center justify-center gap-2 transition-colors border border-teal-200 cursor-pointer self-start sm:self-auto"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Data ke Supabase'}
+          </button>
+        </div>
+
+        {syncStatus && (
+          <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${syncStatus.success ? 'bg-emerald-50 text-emerald-900 border border-emerald-200' : 'bg-rose-50 text-rose-900 border border-rose-200'}`}>
+            {syncStatus.success ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{syncStatus.message}</span>
+          </div>
+        )}
       </div>
 
       {/* Summary Stat Cards (STRICTLY NO FAKE DATA) */}

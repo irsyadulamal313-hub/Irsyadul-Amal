@@ -367,6 +367,77 @@ export const AdminContentSection: React.FC<AdminContentSectionProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Hero Image Caption */}
+            <div className="md:col-span-2 space-y-1.5">
+              <label className="text-xs font-bold text-[#071F20] block">
+                Caption / Keterangan Foto Hero
+              </label>
+              <input
+                type="text"
+                value={formData.heroImageCaption || ''}
+                onChange={(e) => handleFieldChange('heroImageCaption', e.target.value)}
+                placeholder="Contoh: Penyaluran santunan dan pembinaan yatim dhuafa Garut"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:border-[#008284] outline-none"
+              />
+              <p className="text-[11px] text-gray-400">Tampil sebagai teks keterangan di bawah foto hero beranda.</p>
+            </div>
+
+            {/* Homepage Statistics Section */}
+            <div className="md:col-span-2 pt-4 border-t border-gray-100 space-y-3">
+              <div>
+                <h4 className="font-extrabold text-sm text-[#071F20]">4 Kartu Statistik Beranda</h4>
+                <p className="text-[11px] text-gray-500">
+                  Teks statistik publik. Jika dikosongkan, sistem akan otomatis menampilkan status &quot;Data akan diperbarui&quot; atau menghitung dari data rill tanpa angka palsu.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="space-y-1 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                  <label className="text-[11px] font-bold text-gray-700 block">Total Donasi</label>
+                  <input
+                    type="text"
+                    value={formData.statsTotalDonations || ''}
+                    onChange={(e) => handleFieldChange('statsTotalDonations', e.target.value)}
+                    placeholder="Data akan diperbarui"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold focus:border-[#008284] outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                  <label className="text-[11px] font-bold text-gray-700 block">Program Berjalan</label>
+                  <input
+                    type="text"
+                    value={formData.statsActivePrograms || ''}
+                    onChange={(e) => handleFieldChange('statsActivePrograms', e.target.value)}
+                    placeholder="Otomatis dihitung / custom"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold focus:border-[#008284] outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                  <label className="text-[11px] font-bold text-gray-700 block">Penerima Manfaat</label>
+                  <input
+                    type="text"
+                    value={formData.statsBeneficiaries || ''}
+                    onChange={(e) => handleFieldChange('statsBeneficiaries', e.target.value)}
+                    placeholder="Data akan diperbarui"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold focus:border-[#008284] outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                  <label className="text-[11px] font-bold text-gray-700 block">Donatur</label>
+                  <input
+                    type="text"
+                    value={formData.statsDonors || ''}
+                    onChange={(e) => handleFieldChange('statsDonors', e.target.value)}
+                    placeholder="Data akan diperbarui"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold focus:border-[#008284] outline-none"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -28,35 +28,12 @@ export interface AdminAuthResult {
  * Sesuai dengan spesifikasi diagnostik pengguna
  */
 export function formatSupabaseAuthError(error: any): string {
-  if (!error) return 'Terjadi kesalahan autentikasi.';
+  if (!error) return 'Email atau password salah.';
 
   const message = String(error.message || '').toLowerCase();
-  const code = String(error.code || '').toLowerCase();
   const name = String(error.name || '').toLowerCase();
 
-  if (
-    message.includes('invalid login credentials') ||
-    code.includes('invalid_credentials') ||
-    message.includes('invalid_grant')
-  ) {
-    return 'Email atau password salah. Pastikan akun tersebut sudah dibuat di Supabase Authentication.';
-  }
-
-  if (
-    message.includes('email not confirmed') ||
-    code.includes('email_not_confirmed') ||
-    message.includes('unconfirmed')
-  ) {
-    return 'Email admin belum dikonfirmasi.';
-  }
-
-  if (
-    message.includes('user not found') ||
-    code.includes('user_not_found')
-  ) {
-    return 'Akun admin belum terdaftar di Supabase Authentication.';
-  }
-
+  // Gangguan koneksi atau jaringan
   if (
     message.includes('failed to fetch') ||
     message.includes('network error') ||
@@ -66,6 +43,7 @@ export function formatSupabaseAuthError(error: any): string {
     return 'Tidak dapat terhubung ke Supabase.';
   }
 
+  // Konfigurasi Supabase
   if (
     message.includes('configuration error') ||
     message.includes('anon key') ||
@@ -74,18 +52,8 @@ export function formatSupabaseAuthError(error: any): string {
     return 'Konfigurasi Supabase belum lengkap.';
   }
 
-  if (
-    message.includes('password should be at least') ||
-    message.includes('weak password')
-  ) {
-    return 'Kata sandi minimal 6 karakter sesuai standar keamanan Supabase.';
-  }
-
-  if (message.includes('user already registered') || message.includes('already exists')) {
-    return 'Email ini sudah terdaftar di Supabase. Silakan langsung masuk atau gunakan Lupa Password.';
-  }
-
-  return 'Autentikasi gagal: ' + (error.message || 'Periksa kembali data masukan Anda.');
+  // Pesan error autentikasi umum (aman, tidak membocorkan keberadaan email)
+  return 'Email atau password salah.';
 }
 
 /**
@@ -182,73 +150,181 @@ export async function checkAdminEmailStatus(email: string): Promise<{
   }
 
   try {
-    // 1. Cek pada tabel admin_users
-    const { data: adminRecord } = await client
+    // 1. Cek pada tabel admin_users berdasarkan email
+    const { data: adminRecord, error: queryErr } = await client
       .from('admin_users')
-      .select('email, is_active, role')
+      .select('user_id, email, role, is_active')
       .ilike('email', cleanEmail)
       .maybeSingle();
 
+    if (queryErr) {
+      return {
+        ok: false,
+        registered: false,
+        isActive: false,
+        message: 'Gagal mengakses tabel admin_users di Supabase.',
+      };
+    }
+
     if (adminRecord) {
-      if (adminRecord.is_active === false) {
+      const isRoleAdmin = String(adminRecord.role || '').toLowerCase() === 'admin' ||
+                          String(adminRecord.role || '').toLowerCase() === 'super_admin';
+      const isStatusActive = adminRecord.is_active === true;
+
+      if (!isRoleAdmin) {
+        return {
+          ok: true,
+          registered: true,
+          isActive: isStatusActive,
+          message: 'Akun ini bukan administrator.',
+        };
+      }
+
+      if (!isStatusActive) {
         return {
           ok: true,
           registered: true,
           isActive: false,
-          message: 'Akun terdaftar sebagai Administrator, namun saat ini status non-aktif. Hubungi pengelola utama.',
+          message: 'Akun administrator sedang tidak aktif.',
         };
       }
+
       return {
         ok: true,
         registered: true,
         isActive: true,
-        message: 'Akun terdaftar sebagai Administrator aktif. Autentikasi Supabase siap digunakan.',
+        message: 'Akun terdaftar sebagai administrator aktif. Autentikasi Supabase siap digunakan.',
       };
     }
 
-    // 2. Jika tidak ditemukan di admin_users, cek apakah sudah ada admin sama sekali di sistem
-    const { count } = await client
-      .from('admin_users')
-      .select('id', { count: 'exact', head: true });
-
-    if (count === 0) {
-      return {
-        ok: true,
-        registered: false,
-        isActive: false,
-        message: 'Belum ada administrator yang terdaftar di database. Anda dapat menggunakan menu Setup Admin (/admin/setup) untuk mendaftarkan akun pertama.',
-      };
-    }
-
-    // Ada admin lain tapi email ini tidak terdaftar
+    // 2. Jika tidak ditemukan di admin_users
     return {
       ok: true,
       registered: false,
       isActive: false,
-      message: 'Email ini belum terdaftar di database administrator. Silakan hubungi pengelola utama untuk didaftarkan.',
+      message: 'Akun berhasil login, tetapi belum memiliki hak akses administrator.',
     };
   } catch {
     return {
       ok: false,
       registered: false,
       isActive: false,
-      message: 'Terjadi kendala saat memeriksa status akun. Pastikan skema tabel admin_users sudah terpasang.',
+      message: 'Terjadi kendala saat memeriksa status akun di database.',
     };
   }
 }
 
 /**
- * 7. FITUR DIAGNOSTIK AKUN ADMIN SESUAI SPESIFIKASI:
- * - Supabase: TERHUBUNG / BELUM TERHUBUNG
+ * 4. PANEL DIAGNOSTIK LOGIN (SESUAI SPESIFIKASI PERSIS)
+ * Panel hanya menampilkan:
+ * - Supabase: TERHUBUNG / TIDAK TERHUBUNG
  * - Auth User: DITEMUKAN / TIDAK DITEMUKAN
- * - Auth User ID: DITEMUKAN / TIDAK DITEMUKAN
+ * - Login: BERHASIL / GAGAL
  * - Admin Profile: DITEMUKAN / TIDAK DITEMUKAN
  * - Role: ADMIN / BUKAN ADMIN
- * - is_active: AKTIF / TIDAK AKTIF / -
- * - RLS / Database Query: BERHASIL / DITOLAK
+ * - Status: AKTIF / TIDAK AKTIF
  * 
- * Menampilkan akar masalah sebenarnya tanpa membocorkan kredensial.
+ * JANGAN PERNAH MENAMPILKAN:
+ * password, anon key, service role key, secret key, access token, refresh token
  */
+export interface AdminLoginDiagnosticPanel {
+  supabase: 'TERHUBUNG' | 'TIDAK TERHUBUNG';
+  authUser: 'DITEMUKAN' | 'TIDAK DITEMUKAN';
+  login: 'BERHASIL' | 'GAGAL';
+  adminProfile: 'DITEMUKAN' | 'TIDAK DITEMUKAN';
+  role: 'ADMIN' | 'BUKAN ADMIN';
+  status: 'AKTIF' | 'TIDAK AKTIF';
+}
+
+export async function getAdminLoginDiagnostics(targetEmail?: string): Promise<AdminLoginDiagnosticPanel> {
+  const conn = await testSupabaseConnection();
+  if (!conn.isConnected) {
+    return {
+      supabase: 'TIDAK TERHUBUNG',
+      authUser: 'TIDAK DITEMUKAN',
+      login: 'GAGAL',
+      adminProfile: 'TIDAK DITEMUKAN',
+      role: 'BUKAN ADMIN',
+      status: 'TIDAK AKTIF',
+    };
+  }
+
+  const client = getSupabase();
+  if (!client) {
+    return {
+      supabase: 'TIDAK TERHUBUNG',
+      authUser: 'TIDAK DITEMUKAN',
+      login: 'GAGAL',
+      adminProfile: 'TIDAK DITEMUKAN',
+      role: 'BUKAN ADMIN',
+      status: 'TIDAK AKTIF',
+    };
+  }
+
+  let authUser: 'DITEMUKAN' | 'TIDAK DITEMUKAN' = 'TIDAK DITEMUKAN';
+  let login: 'BERHASIL' | 'GAGAL' = 'GAGAL';
+  let adminProfile: 'DITEMUKAN' | 'TIDAK DITEMUKAN' = 'TIDAK DITEMUKAN';
+  let role: 'ADMIN' | 'BUKAN ADMIN' = 'BUKAN ADMIN';
+  let status: 'AKTIF' | 'TIDAK AKTIF' = 'TIDAK AKTIF';
+
+  try {
+    const { data: sessionData } = await client.auth.getSession();
+    const currentSessionUser = sessionData?.session?.user;
+
+    if (currentSessionUser) {
+      authUser = 'DITEMUKAN';
+      login = 'BERHASIL';
+
+      const { data: profile } = await client
+        .from('admin_users')
+        .select('user_id, role, is_active')
+        .eq('user_id', currentSessionUser.id)
+        .maybeSingle();
+
+      if (profile) {
+        adminProfile = 'DITEMUKAN';
+        const roleVal = String(profile.role || '').toLowerCase();
+        if (roleVal === 'admin' || roleVal === 'super_admin') {
+          role = 'ADMIN';
+        }
+        if (profile.is_active === true) {
+          status = 'AKTIF';
+        }
+      }
+    } else if (targetEmail && targetEmail.includes('@')) {
+      const clean = targetEmail.trim().toLowerCase();
+      const { data: profile } = await client
+        .from('admin_users')
+        .select('user_id, email, role, is_active')
+        .ilike('email', clean)
+        .maybeSingle();
+
+      if (profile) {
+        if (profile.user_id) {
+          authUser = 'DITEMUKAN';
+        }
+        adminProfile = 'DITEMUKAN';
+        const roleVal = String(profile.role || '').toLowerCase();
+        if (roleVal === 'admin' || roleVal === 'super_admin') {
+          role = 'ADMIN';
+        }
+        if (profile.is_active === true) {
+          status = 'AKTIF';
+        }
+      }
+    }
+  } catch {}
+
+  return {
+    supabase: 'TERHUBUNG',
+    authUser,
+    login,
+    adminProfile,
+    role,
+    status,
+  };
+}
+
 export interface AdminAccountDiagnosticResult {
   supabase: 'TERHUBUNG' | 'BELUM TERHUBUNG';
   authUser: 'DITEMUKAN' | 'TIDAK DITEMUKAN';
@@ -322,17 +398,11 @@ export async function checkAdminAccountDiagnostics(
     }
   } catch {}
 
-  // Jika input adalah akun resmi pengguna dan status user belum terbaca dari getUser()
-  if (authUserStatus === 'TIDAK DITEMUKAN' && cleanEmail === 'irsyadulamal313@gmail.com') {
-    authUserStatus = 'DITEMUKAN';
-    authUserIdStatus = 'DITEMUKAN';
-  }
-
   // 3. Periksa tabel admin_users
   try {
     let query = client
       .from('admin_users')
-      .select('id, user_id, name, email, role, is_active');
+      .select('user_id, name, email, role, is_active');
 
     if (currentAuthUserId) {
       query = query.eq('user_id', currentAuthUserId);
@@ -354,34 +424,35 @@ export async function checkAdminAccountDiagnostics(
       if (isRlsError) {
         rlsQueryStatus = 'DITOLAK';
         adminProfile = 'TIDAK DITEMUKAN';
-        notes = 'Admin profile tidak dapat dibaca karena kebijakan RLS. Gunakan tombol "Salin SQL Perbaikan" untuk memperbarui RLS di Supabase SQL Editor.';
+        notes = 'Admin profile tidak dapat dibaca karena kebijakan RLS. Periksa konfigurasi RLS di Supabase.';
       } else if (errMsg.includes('relation') || queryErr.code === '42P01') {
         rlsQueryStatus = 'DITOLAK';
         adminProfile = 'TIDAK DITEMUKAN';
-        notes = 'Tabel admin_users belum dibuat di database Supabase. Jalankan SQL Perbaikan di Supabase SQL Editor.';
+        notes = 'Tabel admin_users belum dibuat di database Supabase.';
       } else {
         rlsQueryStatus = 'DITOLAK';
         adminProfile = 'TIDAK DITEMUKAN';
         notes = `Query database mengalami kendala: ${queryErr.message}`;
       }
     } else if (!dbAdmin) {
-      // Query berhasil tetapi record tidak ada
       rlsQueryStatus = 'BERHASIL';
       adminProfile = 'TIDAK DITEMUKAN';
-      notes = 'User Supabase sudah ada tetapi belum memiliki record admin_users.';
+      notes = 'Akun belum memiliki hak akses administrator.';
       canClaimFirstAdmin = true;
     } else {
-      // Record ditemukan
       rlsQueryStatus = 'BERHASIL';
       adminProfile = 'DITEMUKAN';
-      const isRoleAdmin = dbAdmin.role === 'admin' || dbAdmin.role === 'super_admin';
+      const isRoleAdmin = String(dbAdmin.role || '').toLowerCase() === 'admin' ||
+                          String(dbAdmin.role || '').toLowerCase() === 'super_admin';
+      const isStatusActive = dbAdmin.is_active === true;
+
       roleStatus = isRoleAdmin ? 'ADMIN' : 'BUKAN ADMIN';
-      activeStatus = dbAdmin.is_active ? 'AKTIF' : 'TIDAK AKTIF';
+      activeStatus = isStatusActive ? 'AKTIF' : 'TIDAK AKTIF';
 
       if (!isRoleAdmin) {
-        notes = 'Record admin ditemukan tetapi role bukan admin.';
-      } else if (!dbAdmin.is_active) {
-        notes = 'Administrator ditemukan tetapi status tidak aktif.';
+        notes = 'Akun ini bukan administrator.';
+      } else if (!isStatusActive) {
+        notes = 'Akun administrator sedang tidak aktif.';
       } else {
         notes = 'Profil administrator valid dan aktif. Akun berhak mengakses /admin.';
       }
@@ -389,7 +460,7 @@ export async function checkAdminAccountDiagnostics(
   } catch (err: any) {
     rlsQueryStatus = 'DITOLAK';
     adminProfile = 'TIDAK DITEMUKAN';
-    notes = 'Admin profile tidak dapat dibaca karena kendala akses database atau kebijakan RLS.';
+    notes = 'Admin profile tidak dapat dibaca karena kendala akses database.';
   }
 
   return {
@@ -435,7 +506,7 @@ export async function checkIsInitialSetupAvailable(): Promise<{
   try {
     const { count, error } = await client
       .from('admin_users')
-      .select('id', { count: 'exact', head: true });
+      .select('user_id', { count: 'exact', head: true });
 
     if (error) {
       // Jika tabel belum ada, setup tetap diizinkan
@@ -618,7 +689,6 @@ export async function signUpInitialAdmin({
           email: cleanEmail,
           role: 'admin',
           is_active: true,
-          updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }
       );
@@ -710,11 +780,16 @@ export async function claimFirstAdminBootstrap(customName?: string): Promise<{
       if (!rpcErr) {
         const { data: verified } = await client
           .from('admin_users')
-          .select('id, user_id, name, email, role, is_active')
+          .select('user_id, name, email, role, is_active')
           .eq('user_id', userId)
           .maybeSingle();
 
-        if (verified && (verified.role === 'admin' || verified.role === 'super_admin') && verified.is_active) {
+        if (
+          verified &&
+          (String(verified.role || '').toLowerCase() === 'admin' ||
+            String(verified.role || '').toLowerCase() === 'super_admin') &&
+          verified.is_active === true
+        ) {
           return {
             success: true,
             user: {
@@ -739,7 +814,7 @@ export async function claimFirstAdminBootstrap(customName?: string): Promise<{
           role: 'admin',
           is_active: true,
         })
-        .select('id, user_id, name, email, role, is_active')
+        .select('user_id, name, email, role, is_active')
         .maybeSingle();
 
       if (!insErr && insData) {
@@ -757,7 +832,7 @@ export async function claimFirstAdminBootstrap(customName?: string): Promise<{
 
     return {
       success: false,
-      error: 'Tidak dapat menulis ke admin_users via REST API. Jalankan SQL Perbaikan di Supabase SQL Editor.',
+      error: 'Tidak dapat menulis ke admin_users via REST API. Pastikan struktur tabel admin_users sesuai.',
     };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Gagal melakukan bootstrap administrator.' };
@@ -789,155 +864,96 @@ export async function signInAdmin({
   const cleanEmail = email.trim().toLowerCase();
 
   try {
-    // 1. Eksekusi Supabase Auth
-    const { data, error } = await client.auth.signInWithPassword({
+    // 1. User login menggunakan: supabase.auth.signInWithPassword({ email, password })
+    const { data: authData, error: authError } = await client.auth.signInWithPassword({
       email: cleanEmail,
       password: password,
     });
 
-    if (error) {
+    if (authError) {
+      // 10. Jika email/password salah: tampilkan: "Email atau password salah."
       return {
         success: false,
-        error: formatSupabaseAuthError(error),
+        error: formatSupabaseAuthError(authError),
       };
     }
 
-    if (!data?.session || !data?.user) {
+    // 2. Jika login berhasil, ambil: supabase.auth.getUser()
+    const { data: userData, error: userError } = await client.auth.getUser();
+    const authUser = userData?.user || authData?.user;
+
+    if (userError || !authUser || !authUser.id) {
+      await client.auth.signOut();
       return {
         success: false,
-        error: 'Gagal memulai sesi autentikasi Supabase.',
+        error: 'Gagal memverifikasi pengguna terautentikasi.',
       };
     }
 
-    // 1. Ambil session, user.id, user.email
-    const authUser = data.user;
+    // 3. Ambil user.id dari authenticated Supabase user
     const userId = authUser.id;
     const userEmail = (authUser.email || cleanEmail).toLowerCase();
 
-    // 2. Cari user tersebut pada tabel admin_users berdasarkan admin_users.user_id = auth.users.id
-    let adminRecord: any = null;
-    let queryError: any = null;
+    // 4. Cari data admin_users berdasarkan: admin_users.user_id = authenticated user.id
+    const { data: adminRecord, error: queryErr } = await client
+      .from('admin_users')
+      .select('user_id, name, email, role, is_active')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    try {
-      const { data: dbAdmin, error: selErr } = await client
-        .from('admin_users')
-        .select('id, user_id, name, email, role, is_active')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      queryError = selErr;
-
-      if (dbAdmin) {
-        adminRecord = dbAdmin;
-      } else {
-        // Coba bootstrap otomatis jika fungsi database tersedia
-        try {
-          const { error: rpcErr } = await client.rpc('bootstrap_first_admin', {
-            p_name: authUser.user_metadata?.name || 'Administrator Utama',
-          });
-          if (!rpcErr) {
-            const { data: recheckAdmin } = await client
-              .from('admin_users')
-              .select('id, user_id, name, email, role, is_active')
-              .eq('user_id', userId)
-              .maybeSingle();
-            if (recheckAdmin) {
-              adminRecord = recheckAdmin;
-            }
-          }
-        } catch {}
-
-        // Coba periksa apakah ada row dengan email sama yang belum ditautkan user_id
-        if (!adminRecord) {
-          try {
-            const { data: emailMatch } = await client
-              .from('admin_users')
-              .select('id, user_id, name, email, role, is_active')
-              .ilike('email', userEmail)
-              .maybeSingle();
-
-            if (emailMatch) {
-              if (emailMatch.is_active && (emailMatch.role === 'admin' || emailMatch.role === 'super_admin')) {
-                // Tautkan user_id ke auth.users(id)
-                await client
-                  .from('admin_users')
-                  .update({ user_id: userId, updated_at: new Date().toISOString() })
-                  .eq('id', emailMatch.id);
-                adminRecord = { ...emailMatch, user_id: userId };
-              }
-            }
-          } catch {}
-        }
-      }
-    } catch (dbErr: any) {
-      queryError = dbErr;
-      console.warn('Kendala pembacaan tabel admin_users:', dbErr);
-    }
-
-    // 7. Evaluasi Record admin_users:
-    // WHERE user_id = user.id AND role = 'admin' AND is_active = true
-    if (adminRecord) {
-      if (adminRecord.is_active === false) {
-        await client.auth.signOut();
-        return {
-          success: false,
-          error: 'Administrator ditemukan tetapi status tidak aktif.',
-        };
-      }
-
-      if (adminRecord.role === 'admin' || adminRecord.role === 'super_admin') {
-        return {
-          success: true,
-          user: {
-            id: userId,
-            email: userEmail,
-            name: adminRecord.name || authUser.user_metadata?.name || 'Administrator',
-            role: adminRecord.role,
-          },
-        };
-      } else {
-        return {
-          success: false,
-          error: 'Record admin ditemukan tetapi role bukan admin.',
-        };
-      }
-    }
-
-    // Jika tidak ditemukan record admin_users atau terkendala RLS:
-    // Deteksi akar masalah sebenarnya tanpa langsung memutus sesi diagnostik
-    const errMsg = (queryError?.message || '').toLowerCase();
-    const isRlsBlocked =
-      queryError?.code === '42501' ||
-      errMsg.includes('row-level security') ||
-      errMsg.includes('policy') ||
-      errMsg.includes('recursion') ||
-      errMsg.includes('permission denied');
-
-    if (isRlsBlocked) {
+    if (queryErr) {
+      await client.auth.signOut();
       return {
         success: false,
-        error: 'Admin profile tidak dapat dibaca karena kebijakan RLS.',
-        canClaimFirstAdmin: false,
-        needsSqlFix: true,
+        error: `Gagal membaca profil administrator: ${queryErr.message}`,
       };
     }
 
-    if (queryError?.code === '42P01' || errMsg.includes('relation')) {
+    // 7. Jika tidak ditemukan: tampilkan pesan:
+    // "Akun berhasil login, tetapi belum memiliki hak akses administrator."
+    if (!adminRecord) {
+      await client.auth.signOut();
       return {
         success: false,
-        error: 'Tabel admin_users belum dibuat di database Supabase.',
-        canClaimFirstAdmin: false,
-        needsSqlFix: true,
+        error: 'Akun berhasil login, tetapi belum memiliki hak akses administrator.',
       };
     }
 
+    // 5 & 8. Validasi: role harus bernilai "admin" secara case-insensitive.
+    // Jika role bukan admin: tampilkan: "Akun ini bukan administrator."
+    const roleVal = String(adminRecord.role || '').toLowerCase();
+    if (roleVal !== 'admin' && roleVal !== 'super_admin') {
+      await client.auth.signOut();
+      return {
+        success: false,
+        error: 'Akun ini bukan administrator.',
+      };
+    }
+
+    // 5 & 9. Validasi: is_active harus bernilai true.
+    // Jika is_active false: tampilkan: "Akun administrator sedang tidak aktif."
+    if (adminRecord.is_active !== true) {
+      await client.auth.signOut();
+      return {
+        success: false,
+        error: 'Akun administrator sedang tidak aktif.',
+      };
+    }
+
+    // 6. Jika valid: izinkan masuk ke Dashboard Admin
     return {
-      success: false,
-      error: 'User Supabase sudah ada tetapi belum memiliki record admin_users.',
-      canClaimFirstAdmin: true,
-      needsSqlFix: true,
+      success: true,
+      user: {
+        id: userId,
+        email: userEmail,
+        name: adminRecord.name || authUser.user_metadata?.name || 'Administrator',
+        role: adminRecord.role || 'admin',
+      },
     };
   } catch (err: any) {
+    try {
+      await client.auth.signOut();
+    } catch {}
     return {
       success: false,
       error: formatSupabaseAuthError(err),
@@ -946,23 +962,8 @@ export async function signInAdmin({
 }
 
 /**
- * 6. PERBAIKI LOGIKA ADMIN GUARD:
- * Setelah login:
- * const { data: { user } } = await supabase.auth.getUser()
- * Kemudian:
- * select *
- * from admin_users
- * where user_id = user.id
- * and role = 'admin'
- * and is_active = true
- * single()
- * 
- * Jika ditemukan:
- * → masuk ke /admin
- * 
- * Jika tidak ditemukan:
- * → tampilkan error yang jelas.
- * Tetapi jangan langsung signOut sebelum sistem selesai melakukan diagnosis.
+ * 6. LOGIKA ADMIN GUARD:
+ * Memverifikasi sesi aktif dan memastikan user terdaftar di admin_users dengan role admin dan is_active true
  */
 export async function verifyCurrentAdminSession(): Promise<{
   isValid: boolean;
@@ -989,7 +990,7 @@ export async function verifyCurrentAdminSession(): Promise<{
       error,
     } = await client.auth.getUser();
 
-    if (error || !user) {
+    if (error || !user || !user.id) {
       return { isValid: false, reason: 'Tidak ada sesi aktif.' };
     }
 
@@ -999,55 +1000,50 @@ export async function verifyCurrentAdminSession(): Promise<{
     // Cari di admin_users: user_id = user.id
     const { data: dbAdmin, error: queryErr } = await client
       .from('admin_users')
-      .select('id, user_id, name, email, role, is_active')
+      .select('user_id, name, email, role, is_active')
       .eq('user_id', userId)
       .maybeSingle();
 
     if (queryErr) {
-      const errMsg = (queryErr.message || '').toLowerCase();
-      if (
-        queryErr.code === '42501' ||
-        errMsg.includes('policy') ||
-        errMsg.includes('row-level security') ||
-        errMsg.includes('recursion')
-      ) {
-        return {
-          isValid: false,
-          reason: 'Admin profile tidak dapat dibaca karena kebijakan RLS.',
-        };
-      }
       return {
         isValid: false,
         reason: `Kendala akses admin_users: ${queryErr.message}`,
       };
     }
 
+    // 7. Jika tidak ditemukan
     if (!dbAdmin) {
       return {
         isValid: false,
-        reason: 'User Supabase sudah ada tetapi belum memiliki record admin_users.',
+        reason: 'Akun berhasil login, tetapi belum memiliki hak akses administrator.',
       };
     }
 
-    if (dbAdmin.is_active === false) {
-      return { isValid: false, reason: 'Administrator ditemukan tetapi status tidak aktif.' };
+    // 8. Role harus bernilai "admin" secara case-insensitive
+    const roleVal = String(dbAdmin.role || '').toLowerCase();
+    if (roleVal !== 'admin' && roleVal !== 'super_admin') {
+      return {
+        isValid: false,
+        reason: 'Akun ini bukan administrator.',
+      };
     }
 
-    if (dbAdmin.role === 'admin' || dbAdmin.role === 'super_admin') {
+    // 9. is_active harus bernilai true
+    if (dbAdmin.is_active !== true) {
       return {
-        isValid: true,
-        user: {
-          id: userId,
-          email: userEmail,
-          name: dbAdmin.name || user.user_metadata?.name || 'Administrator',
-          role: dbAdmin.role,
-        },
+        isValid: false,
+        reason: 'Akun administrator sedang tidak aktif.',
       };
     }
 
     return {
-      isValid: false,
-      reason: 'Record admin ditemukan tetapi role bukan admin.',
+      isValid: true,
+      user: {
+        id: userId,
+        email: userEmail,
+        name: dbAdmin.name || user.user_metadata?.name || 'Administrator',
+        role: dbAdmin.role || 'admin',
+      },
     };
   } catch (err: any) {
     return { isValid: false, reason: err?.message || 'Gagal memverifikasi sesi.' };
@@ -1068,8 +1064,12 @@ export async function signOutAdminAuth(): Promise<void> {
   }
 }
 
+export const PRODUCTION_RESET_PASSWORD_URL = 'https://irsyadul-amal.vercel.app/reset-password';
+
 /**
  * 10. Lupa Password
+ * Mengirim email pemulihan via Supabase Auth dengan redirectTo: https://irsyadul-amal.vercel.app/reset-password
+ * Tidak pernah mengarahkan ke http://localhost:3000
  */
 export async function requestPasswordReset(email: string): Promise<{
   success: boolean;
@@ -1099,7 +1099,10 @@ export async function requestPasswordReset(email: string): Promise<{
   }
 
   try {
-    const redirectUrl = `${window.location.origin}/admin/reset-password`;
+    // Sesuai ketentuan nomor 3 & 6:
+    // Gunakan redirectTo: https://irsyadul-amal.vercel.app/reset-password
+    // Jangan mengarahkan ke http://localhost:3000
+    const redirectUrl = PRODUCTION_RESET_PASSWORD_URL;
     const { error } = await client.auth.resetPasswordForEmail(cleanEmail, {
       redirectTo: redirectUrl,
     });
@@ -1113,7 +1116,7 @@ export async function requestPasswordReset(email: string): Promise<{
 
     return {
       success: true,
-      message: `Tautan pemulihan kata sandi telah dikirimkan ke email ${cleanEmail}. Silakan periksa kotak masuk atau spam Anda.`,
+      message: `Tautan instruksi reset password telah dikirim ke ${cleanEmail}. Silakan periksa kotak masuk atau spam email Anda.`,
     };
   } catch (err: any) {
     return {
@@ -1124,7 +1127,8 @@ export async function requestPasswordReset(email: string): Promise<{
 }
 
 /**
- * 10. Reset Password Baru
+ * 11. Reset Password Baru
+ * Menggunakan supabase.auth.updateUser({ password: newPassword })
  */
 export async function updateAdminPassword(newPassword: string): Promise<{
   success: boolean;
@@ -1145,16 +1149,24 @@ export async function updateAdminPassword(newPassword: string): Promise<{
     };
   }
 
-  if (!newPassword || newPassword.length < 6) {
+  const cleanPassword = (newPassword || '').trim();
+  if (!cleanPassword) {
     return {
       success: false,
-      message: 'Kata sandi baru minimal 6 karakter.',
+      message: 'Password baru tidak boleh kosong.',
+    };
+  }
+
+  if (cleanPassword.length < 6) {
+    return {
+      success: false,
+      message: 'Password baru minimal 6 karakter sesuai standar keamanan Supabase.',
     };
   }
 
   try {
     const { error } = await client.auth.updateUser({
-      password: newPassword,
+      password: cleanPassword,
     });
 
     if (error) {
@@ -1164,9 +1176,14 @@ export async function updateAdminPassword(newPassword: string): Promise<{
       };
     }
 
+    // Keluar dari sesi recovery agar pengguna dapat login bersih dengan kredensial baru
+    try {
+      await client.auth.signOut();
+    } catch {}
+
     return {
       success: true,
-      message: 'Kata sandi berhasil diperbarui. Silakan login kembali dengan kata sandi baru Anda.',
+      message: 'Password baru berhasil disimpan! Silakan masuk kembali dengan password baru Anda.',
     };
   } catch (err: any) {
     return {
@@ -1211,7 +1228,11 @@ export async function getSafeAdminDiagnostics(): Promise<AdminDiagnosticState> {
                 .select('role')
                 .eq('user_id', data.session.user.id)
                 .maybeSingle();
-              if (dbAdmin && (dbAdmin.role === 'admin' || dbAdmin.role === 'super_admin')) {
+              if (
+                dbAdmin &&
+                (String(dbAdmin.role || '').toLowerCase() === 'admin' ||
+                  String(dbAdmin.role || '').toLowerCase() === 'super_admin')
+              ) {
                 isAdminRole = true;
               }
             } catch {

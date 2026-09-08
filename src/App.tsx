@@ -25,12 +25,27 @@ export type AppRoute =
   | 'admin_login'
   | 'admin_setup'
   | 'admin_forgot_password'
-  | 'admin_reset_password';
+  | 'reset_password';
 
 function parseCurrentRoute(): AppRoute {
   const path = window.location.pathname.toLowerCase();
   const hash = window.location.hash.toLowerCase();
 
+  // KETENTUAN 4 & 5: Deteksi route /reset-password dan sesi recovery
+  if (
+    path === '/reset-password' ||
+    path.startsWith('/reset-password') ||
+    hash === '#/reset-password' ||
+    hash.startsWith('#/reset-password') ||
+    hash === '#reset-password' ||
+    hash.startsWith('#reset-password') ||
+    path === '/admin/reset-password' ||
+    hash === '#/admin/reset-password' ||
+    hash === '#admin/reset-password' ||
+    window.location.hash.includes('type=recovery')
+  ) {
+    return 'reset_password';
+  }
   if (path === '/admin/setup' || hash === '#/admin/setup' || hash === '#admin/setup') {
     return 'admin_setup';
   }
@@ -40,13 +55,6 @@ function parseCurrentRoute(): AppRoute {
     hash === '#admin/forgot-password'
   ) {
     return 'admin_forgot_password';
-  }
-  if (
-    path === '/admin/reset-password' ||
-    hash === '#/admin/reset-password' ||
-    hash === '#admin/reset-password'
-  ) {
-    return 'admin_reset_password';
   }
   if (path === '/admin/login' || hash === '#/admin/login' || hash === '#admin/login') {
     return 'admin_login';
@@ -77,7 +85,7 @@ export default function App() {
       else if (route === 'admin_login') targetPath = '/admin/login';
       else if (route === 'admin_setup') targetPath = '/admin/setup';
       else if (route === 'admin_forgot_password') targetPath = '/admin/forgot-password';
-      else if (route === 'admin_reset_password') targetPath = '/admin/reset-password';
+      else if (route === 'reset_password') targetPath = '/reset-password';
 
       window.history.pushState(null, '', targetPath);
     }
@@ -103,11 +111,7 @@ export default function App() {
   };
 
   const handleOpenAdmin = () => {
-    if (isAdminLoggedIn) {
-      navigateToRoute('admin');
-    } else {
-      navigateToRoute('admin_login');
-    }
+    navigateToRoute('admin_login');
   };
 
   const handleOpenQuickDonation = (program?: ProgramItem) => {
@@ -135,12 +139,13 @@ export default function App() {
     );
   }
 
-  // 3. ADMIN RESET PASSWORD VIEW (/admin/reset-password)
-  if (currentRoute === 'admin_reset_password') {
+  // 3. RESET PASSWORD VIEW (/reset-password)
+  if (currentRoute === 'reset_password') {
     return (
       <AdminResetPasswordView
         onReturnToLogin={() => navigateToRoute('admin_login')}
         onReturnToPublic={() => navigateToRoute('public')}
+        onGoToForgotPassword={() => navigateToRoute('admin_forgot_password')}
       />
     );
   }

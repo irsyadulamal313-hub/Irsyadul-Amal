@@ -186,10 +186,11 @@ CREATE TABLE IF NOT EXISTS media (
 
 -- 14. ADMIN USERS (Akses Pengelola)
 CREATE TABLE IF NOT EXISTS admin_users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
-    full_name VARCHAR(255) NOT NULL,
-    role user_role DEFAULT 'admin',
+    role VARCHAR(50) DEFAULT 'admin',
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

@@ -28,6 +28,21 @@ import {
 
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
 import { signOutAdminAuth, verifyCurrentAdminSession } from '../lib/adminAuth';
+import {
+  fetchSiteSettingsFromSupabase,
+  saveSiteSettingsToSupabase,
+  fetchHomepageContentFromSupabase,
+  saveHomepageContentToSupabase,
+  fetchProgramsFromSupabase,
+  upsertProgramToSupabase,
+  deleteProgramFromSupabase,
+  fetchBankAccountsFromSupabase,
+  upsertBankAccountToSupabase,
+  deleteBankAccountFromSupabase,
+  fetchReportsFromSupabase,
+  upsertReportToSupabase,
+  deleteReportFromSupabase,
+} from '../lib/cmsSupabaseService';
 
 const LOCAL_STORAGE_KEY = 'irsyadul_amal_cms_state_v1';
 
@@ -56,6 +71,9 @@ interface CMSContextType {
   media: MediaItem[];
   isAdminLoggedIn: boolean;
   adminUser: AdminUser | null;
+  isSupabaseConnected: boolean;
+  isSupabaseLoading: boolean;
+  syncAllToSupabase: () => Promise<{ success: boolean; message: string }>;
 
   // Actions
   loginAdmin: (emailOrUser: string, pass: string) => { success: boolean; message?: string };
@@ -284,6 +302,63 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
+  // Supabase dynamic state loader
+  const [isSupabaseLoading, setIsSupabaseLoading] = useState(false);
+  const isSupabaseConnected = isSupabaseConfigured();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSupabaseData = async () => {
+      if (!isSupabaseConfigured()) return;
+      setIsSupabaseLoading(true);
+
+      try {
+        const [settingsRes, homepageRes, programsRes, banksRes, reportsRes] = await Promise.all([
+          fetchSiteSettingsFromSupabase(),
+          fetchHomepageContentFromSupabase(),
+          fetchProgramsFromSupabase(),
+          fetchBankAccountsFromSupabase(),
+          fetchReportsFromSupabase(),
+        ]);
+
+        if (!isMounted) return;
+
+        if (settingsRes.data && Object.keys(settingsRes.data).length > 0) {
+          setSiteSettings((prev) => ({ ...prev, ...settingsRes.data }));
+        }
+
+        if (homepageRes.data && Object.keys(homepageRes.data).length > 0) {
+          setHomepageContent((prev) => ({ ...prev, ...homepageRes.data }));
+        }
+
+        if (programsRes.data && programsRes.data.length > 0) {
+          setPrograms(programsRes.data);
+        }
+
+        if (banksRes.data && banksRes.data.length > 0) {
+          setBankAccounts(banksRes.data);
+        }
+
+        if (reportsRes.data && reportsRes.data.length > 0) {
+          setReports(reportsRes.data);
+        }
+      } catch (err) {
+        console.warn('[CMS] Error loading data from Supabase:', err);
+      } finally {
+        if (isMounted) {
+          setIsSupabaseLoading(false);
+        }
+      }
+    };
+
+    loadSupabaseData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Save to localStorage when state changes
   useEffect(() => {
     try {
@@ -438,13 +513,18 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const normalized = cleanWa.startsWith('0') ? '62' + cleanWa.slice(1) : cleanWa;
         updated.whatsappUrl = `https://wa.me/${normalized}`;
       }
+      saveSiteSettingsToSupabase(updated);
       return updated;
     });
   };
 
   const updateHomepageContent = (content: Partial<HomepageContent>, publishImmediately = true) => {
     if (publishImmediately) {
-      setHomepageContent((prev) => ({ ...prev, ...content }));
+      setHomepageContent((prev) => {
+        const updated = { ...prev, ...content };
+        saveHomepageContentToSupabase(updated);
+        return updated;
+      });
       setDraftHomepageContent(null);
       setIsDraftModeActive(false);
     } else {
@@ -461,6 +541,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const publishHomepageDraft = () => {
     if (draftHomepageContent) {
       setHomepageContent(draftHomepageContent);
+      saveHomepageContentToSupabase(draftHomepageContent);
       setDraftHomepageContent(null);
       setIsDraftModeActive(false);
     }
@@ -474,14 +555,17 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Program actions
   const addProgram = (program: ProgramItem) => {
     setPrograms((prev) => [program, ...prev]);
+    upsertProgramToSupabase(program);
   };
 
   const updateProgram = (program: ProgramItem) => {
     setPrograms((prev) => prev.map((p) => (p.id === program.id ? program : p)));
+    upsertProgramToSupabase(program);
   };
 
   const deleteProgram = (id: string) => {
     setPrograms((prev) => prev.filter((p) => p.id !== id));
+    deleteProgramFromSupabase(id);
   };
 
   const duplicateProgram = (id: string) => {
@@ -496,6 +580,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isDraft: true,
     };
     setPrograms((prev) => [duplicated, ...prev]);
+    upsertProgramToSupabase(duplicated);
   };
 
   // Category actions
@@ -513,33 +598,46 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Bank account actions
   const addBankAccount = (acc: BankAccountItem) => {
     setBankAccounts((prev) => [...prev, acc]);
+    upsertBankAccountToSupabase(acc);
   };
 
   const updateBankAccount = (acc: BankAccountItem) => {
     setBankAccounts((prev) => prev.map((b) => (b.id === acc.id ? acc : b)));
+    upsertBankAccountToSupabase(acc);
   };
 
   const deleteBankAccount = (id: string) => {
     setBankAccounts((prev) => prev.filter((b) => b.id !== id));
+    deleteBankAccountFromSupabase(id);
   };
 
   const toggleBankAccountActive = (id: string) => {
     setBankAccounts((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, isActive: b.isActive === false ? true : false } : b))
+      prev.map((b) => {
+        if (b.id === id) {
+          const toggled = { ...b, isActive: b.isActive === false ? true : false };
+          upsertBankAccountToSupabase(toggled);
+          return toggled;
+        }
+        return b;
+      })
     );
   };
 
   // Report actions
   const addReport = (report: OfficialReportItem) => {
     setReports((prev) => [report, ...prev]);
+    upsertReportToSupabase(report);
   };
 
   const updateReport = (report: OfficialReportItem) => {
     setReports((prev) => prev.map((r) => (r.id === report.id ? report : r)));
+    upsertReportToSupabase(report);
   };
 
   const deleteReport = (id: string) => {
     setReports((prev) => prev.filter((r) => r.id !== id));
+    deleteReportFromSupabase(id);
   };
 
   // Documentation actions
@@ -606,6 +704,45 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setMedia((prev) => prev.filter((item) => item.id !== id));
   };
 
+  // Synchronize all CMS state to Supabase tables
+  const syncAllToSupabase = async (): Promise<{ success: boolean; message: string }> => {
+    if (!isSupabaseConfigured()) {
+      return {
+        success: false,
+        message: 'Supabase URL & Anon Key belum terkonfigurasi pada file environment.',
+      };
+    }
+
+    try {
+      // 1. Site Settings
+      await saveSiteSettingsToSupabase(siteSettings);
+      // 2. Homepage Content
+      await saveHomepageContentToSupabase(homepageContent);
+      // 3. Programs
+      for (const prog of programs) {
+        await upsertProgramToSupabase(prog);
+      }
+      // 4. Bank Accounts
+      for (const bank of bankAccounts) {
+        await upsertBankAccountToSupabase(bank);
+      }
+      // 5. Reports
+      for (const rep of reports) {
+        await upsertReportToSupabase(rep);
+      }
+
+      return {
+        success: true,
+        message: 'Seluruh data CMS (Pengaturan, Beranda, Program, Rekening, Laporan) berhasil disinkronisasikan ke Supabase.',
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Gagal sinkronisasi ke Supabase: ${err?.message || 'Terjadi kesalahan sistem'}`,
+      };
+    }
+  };
+
   // Reset to default
   const resetToDefaultData = () => {
     setSiteSettings(INITIAL_SITE_SETTINGS);
@@ -646,6 +783,9 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     media,
     isAdminLoggedIn: !!adminUser,
     adminUser,
+    isSupabaseConnected,
+    isSupabaseLoading,
+    syncAllToSupabase,
 
     loginAdmin,
     logoutAdmin,

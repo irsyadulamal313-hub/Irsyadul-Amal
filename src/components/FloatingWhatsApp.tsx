@@ -1,11 +1,15 @@
 import React from 'react';
 import { MessageCircle } from 'lucide-react';
-import { FOUNDATION_INFO } from '../data/officialData';
+import { useCMS } from '../data/cmsContext';
 
 export const FloatingWhatsApp: React.FC = () => {
-  const whatsappUrl = `https://wa.me/6287804034140?text=${encodeURIComponent(
-    "Assalamu'alaikum Irsyadul Amal, saya ingin mendapatkan informasi mengenai program dan donasi."
-  )}`;
+  const { siteSettings } = useCMS();
+  const cleanPhone = (siteSettings?.whatsapp || '087804034140').replace(/\D/g, '').replace(/^0/, '62');
+  const defaultMessage =
+    siteSettings?.whatsappDefaultMessage ||
+    "Assalamu'alaikum Irsyadul Amal, saya ingin mendapatkan informasi mengenai program dan donasi.";
+
+  const whatsappUrl = `https://wa.me/${cleanPhone || '6287804034140'}?text=${encodeURIComponent(defaultMessage)}`;
 
   return (
     <aside
@@ -21,7 +25,7 @@ export const FloatingWhatsApp: React.FC = () => {
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Chat WhatsApp Resmi Irsyadul Amal (087804034140)"
+        aria-label={`Chat WhatsApp Resmi Irsyadul Amal (${siteSettings?.whatsapp || '087804034140'})`}
         className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-lg hover:bg-[#20bd5a] hover:scale-105 active:scale-95 transition-all focus:outline-none focus:ring-4 focus:ring-[#25D366]/40"
       >
         <MessageCircle className="w-7 h-7 fill-white stroke-[#25D366]" />
@@ -29,3 +33,4 @@ export const FloatingWhatsApp: React.FC = () => {
     </aside>
   );
 };
+

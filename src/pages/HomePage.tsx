@@ -26,7 +26,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onSelectProgramDetail,
   onOpenQuickDonation,
 }) => {
-  const { homepageContent, bankGroups, siteSettings } = useCMS();
+  const { homepageContent, bankGroups, siteSettings, donors } = useCMS();
   const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
   const [imgError, setImgError] = useState<Record<string, boolean>>({});
 
@@ -173,7 +173,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             Total Donasi
           </span>
           <p className="text-xs sm:text-sm font-semibold text-[#008284]">
-            Data akan diperbarui
+            {homepageContent.statsTotalDonations || 'Data akan diperbarui'}
           </p>
           <p className="text-[10px] text-gray-400">Sinkronisasi pembukuan resmi</p>
         </div>
@@ -183,7 +183,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             Program Berjalan
           </span>
           <p className="text-xs sm:text-sm font-semibold text-[#008284]">
-            {programs.length > 0 ? `${programs.length} Program Aktif` : 'Data akan diperbarui'}
+            {homepageContent.statsActivePrograms || (programs.length > 0 ? `${programs.filter(p => p.status === 'BERJALAN').length || programs.length} Program Aktif` : 'Data akan diperbarui')}
           </p>
           <p className="text-[10px] text-gray-400">Pendidikan, Wakaf & Sosial</p>
         </div>
@@ -193,7 +193,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             Penerima Manfaat
           </span>
           <p className="text-xs sm:text-sm font-semibold text-[#008284]">
-            Data akan diperbarui
+            {homepageContent.statsBeneficiaries || 'Data akan diperbarui'}
           </p>
           <p className="text-[10px] text-gray-400">Garut dan sekitarnya</p>
         </div>
@@ -203,7 +203,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             Donatur
           </span>
           <p className="text-xs sm:text-sm font-semibold text-[#008284]">
-            Data akan diperbarui
+            {homepageContent.statsDonors || (donors.length > 0 ? `${donors.length} Donatur` : 'Data akan diperbarui')}
           </p>
           <p className="text-[10px] text-gray-400">Muhsinin & Sahabat Kebaikan</p>
         </div>
@@ -340,55 +340,62 @@ export const HomePage: React.FC<HomePageProps> = ({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        {bankGroups.map((group) => {
-          const firstAcc = group.accounts[0];
-          if (!firstAcc) return null;
-          const isCopied = copiedAccount === firstAcc.accountNumber;
-          return (
-            <div
-              key={group.category}
-              className="bg-[#F0FAFA] border border-[#CCFBF1] rounded-2xl p-4 flex flex-col justify-between space-y-3"
-            >
-              <div>
-                <span className="text-[10px] font-semibold text-[#006769] uppercase tracking-wider">
-                  {group.category}
-                </span>
-                <h4 className="font-semibold text-sm text-[#071F20] mt-0.5">
-                  {firstAcc.bankName}
-                </h4>
-                <p className="text-xs text-gray-500 font-medium">
-                  a.n. {firstAcc.accountHolder}
-                </p>
-              </div>
+      {bankGroups.some((g) => g.accounts.length > 0) ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {bankGroups.map((group) => {
+            const firstAcc = group.accounts[0];
+            if (!firstAcc) return null;
+            const isCopied = copiedAccount === firstAcc.accountNumber;
+            return (
+              <div
+                key={group.category}
+                className="bg-[#F0FAFA] border border-[#CCFBF1] rounded-2xl p-4 flex flex-col justify-between space-y-3"
+              >
+                <div>
+                  <span className="text-[10px] font-semibold text-[#006769] uppercase tracking-wider">
+                    {group.category}
+                  </span>
+                  <h4 className="font-semibold text-sm text-[#071F20] mt-0.5">
+                    {firstAcc.bankName}
+                  </h4>
+                  <p className="text-xs text-gray-500 font-medium">
+                    a.n. {firstAcc.accountHolder}
+                  </p>
+                </div>
 
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-teal-100">
-                <span className="font-mono font-bold text-sm text-[#008284] tracking-wider">
-                  {firstAcc.accountNumber}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(firstAcc.accountNumber)}
-                  className="p-1.5 rounded-lg bg-white border border-teal-200 text-teal-800 hover:bg-teal-50 text-[11px] font-medium flex items-center gap-1 shrink-0 cursor-pointer"
-                  title="Salin nomor rekening"
-                >
-                  {isCopied ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-emerald-700">Tersalin</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Salin</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-teal-100">
+                  <span className="font-mono font-bold text-sm text-[#008284] tracking-wider">
+                    {firstAcc.accountNumber}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(firstAcc.accountNumber)}
+                    className="p-1.5 rounded-lg bg-white border border-teal-200 text-teal-800 hover:bg-teal-50 text-[11px] font-medium flex items-center gap-1 shrink-0 cursor-pointer"
+                    title="Salin nomor rekening"
+                  >
+                    {isCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-emerald-700">Tersalin</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Salin</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="bg-[#F0FAFA] border border-[#CCFBF1] rounded-2xl p-6 text-center space-y-1">
+          <p className="text-xs sm:text-sm font-semibold text-[#006769]">Rekening Resmi Sedang Disinkronisasikan</p>
+          <p className="text-xs text-gray-500">Silakan hubungi Call Center WhatsApp lembaga untuk informasi rekening donasi.</p>
+        </div>
+      )}
     </section>
   );
 
