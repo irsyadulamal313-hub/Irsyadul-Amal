@@ -68,7 +68,7 @@ export const DonationActionModal: React.FC<DonationActionModalProps> = ({
               <Heart className="w-4 h-4 fill-current" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm sm:text-base text-[#071F20]">
+              <h3 className="font-bold text-sm sm:text-base text-[#071F20]">
                 Salurkan Donasi Kebaikan
               </h3>
               <p className="text-[11px] text-[#647B7C] font-normal">

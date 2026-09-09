@@ -90,7 +90,7 @@ export const HomepageVideoSection: React.FC<HomepageVideoSectionProps> = ({
                 {/* Content */}
                 <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
                   <div className="space-y-1.5">
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-snug group-hover:text-[#008284] transition-colors line-clamp-2">
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-snug group-hover:text-[#008284] transition-colors line-clamp-2">
                       {video.title}
                     </h3>
                     {video.description && (

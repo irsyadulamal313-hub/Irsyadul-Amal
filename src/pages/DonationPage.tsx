@@ -154,7 +154,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({
         <span className="text-[11px] font-medium uppercase tracking-wider text-[#008284] bg-teal-50 px-3.5 py-1 rounded-full border border-teal-200/60">
           Amanah Kebaikan Anda
         </span>
-        <h1 className="text-2xl sm:text-3xl font-semibold text-[#071F20] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#071F20] tracking-tight">
           Salurkan Kebaikan Anda
         </h1>
         <p className="text-xs sm:text-sm text-[#647B7C] leading-relaxed max-w-lg mx-auto font-normal">
@@ -166,7 +166,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 pb-3">
           <div>
-            <h2 className="text-base sm:text-lg font-semibold text-[#071F20] tracking-tight flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-[#071F20] tracking-tight flex items-center gap-2">
               <Layers className="w-4 h-4 text-[#008284]" />
               Pilih Program Kebaikan
             </h2>
@@ -359,7 +359,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({
       {/* 4. PILIHAN NOMINAL DONASI */}
       <section className="bg-white rounded-3xl p-5 sm:p-7 border border-[#E0EAEA] shadow-2xs space-y-4">
         <div className="border-b border-gray-100 pb-3">
-          <h2 className="text-base sm:text-lg font-semibold text-[#071F20] tracking-tight flex items-center gap-2">
+          <h2 className="text-base sm:text-lg font-bold text-[#071F20] tracking-tight flex items-center gap-2">
             <Heart className="w-4 h-4 text-amber-500 fill-amber-500" />
             Pilihan Nominal Donasi
           </h2>
@@ -426,7 +426,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({
       {/* 5. REKENING RESMI (EXACT 3 GROUPS, EXACT DIGITS) */}
       <section className="space-y-5">
         <div className="border-b border-gray-200 pb-3">
-          <h2 className="text-lg sm:text-xl font-semibold text-[#071F20] tracking-tight flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-[#071F20] tracking-tight flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-[#008284]" />
             Rekening Resmi Irsyadul Amal
           </h2>
@@ -551,7 +551,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({
       {/* 6. INSTRUKSI TRANSFER */}
       <section className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E0EAEA] shadow-2xs space-y-4">
         <div className="border-b border-gray-100 pb-3">
-          <h2 className="text-base sm:text-lg font-semibold text-[#071F20] tracking-tight flex items-center gap-2">
+          <h2 className="text-base sm:text-lg font-bold text-[#071F20] tracking-tight flex items-center gap-2">
             <HelpCircle className="w-4 h-4 text-[#008284]" />
             Instruksi Transfer
           </h2>
@@ -617,7 +617,7 @@ export const DonationPage: React.FC<DonationPageProps> = ({
           <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-300 bg-black/20 px-3.5 py-0.5 rounded-full">
             Layanan Konfirmasi Resmi
           </span>
-          <h2 className="text-lg sm:text-2xl font-semibold tracking-tight">
+          <h2 className="text-lg sm:text-2xl font-bold tracking-tight">
             Sudah Melakukan Transfer?
           </h2>
           <p className="text-xs sm:text-sm text-teal-100 leading-relaxed max-w-md mx-auto font-normal">

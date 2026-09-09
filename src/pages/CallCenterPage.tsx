@@ -37,7 +37,7 @@ export const CallCenterPage: React.FC = () => {
         <span className="text-[11px] font-medium uppercase tracking-wider text-[#008284] bg-teal-50 px-3 py-1 rounded-full border border-teal-200/60">
           Layanan Sahabat Donatur
         </span>
-        <h1 className="text-2xl sm:text-3xl font-semibold text-[#071F20] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#071F20] tracking-tight">
           Hubungi Irsyadul Amal
         </h1>
         <p className="text-xs sm:text-sm text-[#647B7C] leading-relaxed max-w-lg mx-auto font-normal">
@@ -52,7 +52,7 @@ export const CallCenterPage: React.FC = () => {
           <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
             <IrsyadulAmalLogo size={44} />
             <div>
-              <h2 className="font-semibold text-base text-[#071F20]">
+              <h2 className="font-bold text-base text-[#071F20]">
                 {siteSettings.institutionName || 'IRSYADUL AMAL'}
               </h2>
               <p className="text-xs text-[#008284] font-medium">
@@ -141,7 +141,7 @@ export const CallCenterPage: React.FC = () => {
         {/* Interactive Direct Inquiry Box */}
         <div className="lg:col-span-6 bg-white rounded-3xl p-6 sm:p-7 border border-[#E0EAEA] shadow-2xs space-y-4">
           <div className="space-y-1">
-            <h3 className="font-semibold text-base text-[#071F20]">
+            <h3 className="font-bold text-base text-[#071F20]">
               Kirim Pesan Langsung
             </h3>
             <p className="text-xs text-gray-500 font-normal">

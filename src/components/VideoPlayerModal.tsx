@@ -50,7 +50,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
               <Play className="w-4 h-4 fill-current" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-sm sm:text-base font-semibold text-white truncate">
+              <h3 className="text-sm sm:text-base font-bold text-white truncate">
                 {video.title}
               </h3>
               <p className="text-xs text-gray-400 truncate">

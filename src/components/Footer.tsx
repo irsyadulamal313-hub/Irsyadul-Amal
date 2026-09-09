@@ -30,7 +30,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenAdmin }) => {
             <div className="flex items-center gap-3">
               <IrsyadulAmalLogo size={46} className="bg-white/10 p-0.5 rounded-full" />
               <div>
-                <h3 className="font-semibold text-lg text-white tracking-tight">
+                <h3 className="font-bold text-lg text-white tracking-tight">
                   {siteSettings.name || 'IRSYADUL AMAL'}
                 </h3>
                 <p className="text-xs text-[#8CE8E8] font-normal">

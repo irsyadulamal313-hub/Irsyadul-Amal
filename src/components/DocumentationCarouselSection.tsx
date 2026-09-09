@@ -217,7 +217,7 @@ export const DocumentationCarouselSection: React.FC<DocumentationCarouselSection
                         {item.date}
                       </p>
                     )}
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-snug group-hover:text-[#008284] transition-colors line-clamp-2">
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-snug group-hover:text-[#008284] transition-colors line-clamp-2">
                       {item.title}
                     </h3>
                     {item.description && (

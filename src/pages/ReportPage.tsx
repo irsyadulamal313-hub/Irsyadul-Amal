@@ -57,7 +57,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ onOpenPhotoLightbox }) =
         <span className="text-[11px] font-medium uppercase tracking-wider text-[#008284] bg-teal-50 px-3 py-1 rounded-full border border-teal-200/60">
           Akuntabilitas & Keterbukaan
         </span>
-        <h1 className="text-2xl sm:text-3xl font-semibold text-[#071F20] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#071F20] tracking-tight">
           Transparansi untuk Setiap Amanah
         </h1>
         <p className="text-xs sm:text-sm text-[#647B7C] leading-relaxed max-w-lg mx-auto font-normal">
@@ -123,7 +123,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ onOpenPhotoLightbox }) =
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E0EAEA] shadow-2xs space-y-4 text-center">
               <div className="max-w-md mx-auto space-y-2">
                 <FileText className="w-10 h-10 text-[#008284] mx-auto opacity-70" />
-                <h2 className="text-base sm:text-lg font-semibold text-[#071F20]">
+                <h2 className="text-base sm:text-lg font-bold text-[#071F20]">
                   Laporan Donasi
                 </h2>
                 <p className="text-sm font-semibold text-gray-700">
@@ -156,7 +156,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ onOpenPhotoLightbox }) =
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E0EAEA] shadow-2xs space-y-4 text-center">
             <div className="max-w-md mx-auto space-y-2">
               <ShieldCheck className="w-10 h-10 text-[#008284] mx-auto opacity-70" />
-              <h2 className="text-base sm:text-lg font-semibold text-[#071F20]">
+              <h2 className="text-base sm:text-lg font-bold text-[#071F20]">
                 Laporan Penggunaan Dana
               </h2>
               <p className="text-sm font-semibold text-gray-700">
@@ -187,7 +187,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ onOpenPhotoLightbox }) =
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E0EAEA] shadow-2xs space-y-4 text-center">
             <div className="max-w-md mx-auto space-y-2">
               <FileText className="w-10 h-10 text-[#008284] mx-auto opacity-70" />
-              <h2 className="text-base sm:text-lg font-semibold text-[#071F20]">
+              <h2 className="text-base sm:text-lg font-bold text-[#071F20]">
                 Laporan Program
               </h2>
               <p className="text-sm font-semibold text-gray-700">
@@ -217,7 +217,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ onOpenPhotoLightbox }) =
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base sm:text-lg font-semibold text-[#071F20]">
+              <h2 className="text-base sm:text-lg font-bold text-[#071F20]">
                 Dokumentasi Kegiatan
               </h2>
               <p className="text-xs text-[#647B7C] font-normal">

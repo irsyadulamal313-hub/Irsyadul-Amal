@@ -121,7 +121,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           )}
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight leading-tight">
             {homepageContent.heroTitle || 'Berbagi Kebaikan, Menebar Manfaat'}{' '}
             {homepageContent.heroTitleHighlight && (
               <span className="text-[#A5F3FC]">{homepageContent.heroTitleHighlight}</span>
@@ -190,7 +190,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   const renderStats = () => (
     <section key="stats" className="space-y-4">
       <div className="text-center max-w-xl mx-auto space-y-1">
-        <h2 className="text-xl sm:text-2xl font-semibold text-[#071F20] tracking-tight">
+        <h2 className="text-xl sm:text-2xl font-bold text-[#071F20] tracking-tight">
           Jejak Kebaikan Irsyadul Amal
         </h2>
         <p className="text-xs sm:text-sm text-[#647B7C] font-normal">
@@ -261,7 +261,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     <section key="featuredPrograms" className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg sm:text-xl font-semibold text-[#071F20] tracking-tight">
+          <h2 className="text-lg sm:text-xl font-bold text-[#071F20] tracking-tight">
             Program Kebaikan Pilihan
           </h2>
           <p className="text-xs text-[#647B7C]">
@@ -358,7 +358,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           <span className="text-[11px] font-semibold text-[#008284] uppercase tracking-wider">
             Rekening Resmi Lembaga
           </span>
-          <h2 className="text-lg sm:text-xl font-semibold text-[#071F20] tracking-tight">
+          <h2 className="text-lg sm:text-xl font-bold text-[#071F20] tracking-tight">
             Transfer Kebaikan dengan Mudah & Amanah
           </h2>
         </div>
@@ -437,7 +437,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         <span className="text-[11px] font-semibold text-[#008284] uppercase tracking-wider">
           Tentang Kami
         </span>
-        <h2 className="text-lg sm:text-xl font-semibold text-[#071F20] tracking-tight">
+        <h2 className="text-lg sm:text-xl font-bold text-[#071F20] tracking-tight">
           {homepageContent.aboutTitle || 'Tentang Irsyadul Amal'}
         </h2>
         <p className="text-xs sm:text-sm font-medium text-[#008284]">
@@ -475,7 +475,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <Sparkles className="w-3.5 h-3.5" />
             <span>Layanan Jemput Donasi</span>
           </div>
-          <h3 className="text-lg sm:text-xl font-semibold">
+          <h3 className="text-lg sm:text-xl font-bold">
             {homepageContent.bannerTitle || 'Layanan Jemput Zakat & Donasi Garut'}
           </h3>
           <p className="text-xs sm:text-sm text-teal-100 leading-relaxed font-normal">
@@ -505,7 +505,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       className="bg-gradient-to-br from-[#008284] to-[#006769] text-white rounded-3xl p-8 sm:p-10 shadow-md text-center space-y-4"
     >
       <div className="max-w-2xl mx-auto space-y-2">
-        <h2 className="text-xl sm:text-2xl font-semibold">
+        <h2 className="text-xl sm:text-2xl font-bold">
           {homepageContent.ctaTitle || 'Bersama Menghadirkan Senyum dan Harapan'}
         </h2>
         <p className="text-xs sm:text-sm text-teal-100 leading-relaxed font-normal">

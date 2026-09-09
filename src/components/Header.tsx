@@ -58,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <IrsyadulAmalLogo size={42} className="shadow-2xs rounded-full shrink-0 group-hover:scale-103 transition-transform" />
             <div className="flex flex-col">
-              <span className="font-semibold text-[#008284] text-lg sm:text-xl tracking-tight leading-none group-hover:text-[#006769] transition-colors">
+              <span className="font-bold text-[#008284] text-lg sm:text-xl tracking-tight leading-none group-hover:text-[#006769] transition-colors">
                 {siteSettings.name || 'IRSYADUL AMAL'}
               </span>
               <span className="text-xs text-[#647B7C] font-normal leading-tight mt-1">
@@ -168,7 +168,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center gap-2.5">
                 <IrsyadulAmalLogo size={36} />
                 <div>
-                  <h2 className="font-semibold text-sm text-[#008284] leading-tight">
+                  <h2 className="font-bold text-sm text-[#008284] leading-tight">
                     {siteSettings.name || 'IRSYADUL AMAL'}
                   </h2>
                   <p className="text-[10px] text-[#647B7C] font-normal leading-tight mt-0.5">

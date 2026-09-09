@@ -82,7 +82,7 @@ export const ProgramPage: React.FC<ProgramPageProps> = ({
         <span className="text-[11px] font-medium uppercase tracking-wider text-[#008284] bg-teal-50 px-3 py-1 rounded-full border border-teal-200/60">
           Ikhtiar Kebaikan
         </span>
-        <h1 className="text-2xl sm:text-3xl font-semibold text-[#071F20] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#071F20] tracking-tight">
           Program Kebaikan Irsyadul Amal
         </h1>
         <p className="text-xs sm:text-sm text-[#647B7C] leading-relaxed max-w-lg mx-auto font-normal">

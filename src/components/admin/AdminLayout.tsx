@@ -278,7 +278,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           </button>
           <div className="flex items-center gap-2">
             <IrsyadulAmalLogo size={28} className="brightness-125" />
-            <span className="font-extrabold text-sm tracking-tight">CMS IRSYADUL AMAL</span>
+            <span className="font-bold text-sm tracking-tight">CMS IRSYADUL AMAL</span>
           </div>
         </div>
 
@@ -304,7 +304,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             <div className="flex items-center gap-2.5">
               <IrsyadulAmalLogo size={36} />
               <div>
-                <h1 className="font-extrabold text-sm text-[#008284] leading-tight">IRSYADUL AMAL</h1>
+                <h1 className="font-bold text-sm text-[#008284] leading-tight">IRSYADUL AMAL</h1>
                 <p className="text-[10px] text-[#647B7C] font-semibold">CMS & Dashboard Admin</p>
               </div>
             </div>
@@ -377,7 +377,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                               onClick={() => handleMenuClick(sub.key)}
                               className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] flex items-center gap-2 transition-colors ${
                                 isSubActive
-                                  ? 'text-[#008284] font-black bg-teal-50/80 border-l-2 border-[#008284]'
+                                  ? 'text-[#008284] font-semibold bg-teal-50/80 border-l-2 border-[#008284]'
                                   : 'text-gray-600 hover:text-[#008284] hover:bg-gray-50'
                               }`}
                             >
@@ -403,7 +403,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         <div className="p-3 border-t border-[#EAF2F2] bg-[#FAFCFC] space-y-2">
           {isDraftModeActive && (
             <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-extrabold text-amber-900">
+              <div className="flex items-center justify-between text-[11px] font-bold text-amber-900">
                 <span className="flex items-center gap-1">
                   <Eye className="w-3.5 h-3.5 text-amber-600" />
                   Mode Draft Aktif

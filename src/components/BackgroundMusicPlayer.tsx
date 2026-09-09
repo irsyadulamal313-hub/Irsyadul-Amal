@@ -296,55 +296,62 @@ export const BackgroundMusicPlayer: React.FC = () => {
           )}
 
           <div className="flex items-center gap-1.5">
-            {/* Main Toggle Button */}
-            <button
-              type="button"
-              onClick={() => {
-                if (!isExpanded) {
-                  // If autoplay blocked, clicking also starts playback
+            {/* Main Audio Pill */}
+            <div
+              className={`h-11 pl-3 sm:pl-3.5 pr-2 rounded-full flex items-center gap-2 shadow-lg transition-all duration-300 ${
+                isPlaying
+                  ? 'bg-gray-900 border border-teal-500/50 text-white'
+                  : 'bg-white border border-gray-200 text-gray-700'
+              }`}
+            >
+              {/* Play / Pause Toggle */}
+              <button
+                type="button"
+                onClick={() => {
                   if (!isPlaying && isPlayerReady) {
                     togglePlay();
+                  } else if (isPlaying) {
+                    togglePlay();
+                  } else {
+                    setIsExpanded(true);
                   }
-                  setIsExpanded(true);
-                } else {
-                  togglePlay();
-                }
-              }}
-              className={`h-11 px-3 sm:px-3.5 rounded-full flex items-center gap-2 shadow-lg transition-all duration-300 cursor-pointer ${
-                isPlaying
-                  ? 'bg-gray-900 border border-teal-500/50 text-white hover:border-teal-400'
-                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-              }`}
-              aria-label="Kontrol musik latar belakang"
-            >
-              {/* Equalizer Wave / Icon */}
-              {isPlaying ? (
-                <div className="flex items-end gap-0.5 h-4 w-4">
-                  <span className="w-1 bg-teal-400 rounded-full animate-pulse h-3" />
-                  <span className="w-1 bg-teal-400 rounded-full animate-pulse delay-75 h-4" />
-                  <span className="w-1 bg-teal-400 rounded-full animate-pulse delay-150 h-2" />
-                </div>
-              ) : (
-                <Music className={`w-4 h-4 ${needsGesture ? 'text-amber-500 animate-bounce' : 'text-[#008284]'}`} />
-              )}
+                }}
+                className="flex items-center gap-2 cursor-pointer focus:outline-none"
+                aria-label={isPlaying ? 'Jeda musik latar belakang' : 'Putar musik latar belakang'}
+              >
+                {/* Equalizer Wave / Icon */}
+                {isPlaying ? (
+                  <div className="flex items-end gap-0.5 h-4 w-4">
+                    <span className="w-1 bg-teal-400 rounded-full animate-pulse h-3" />
+                    <span className="w-1 bg-teal-400 rounded-full animate-pulse delay-75 h-4" />
+                    <span className="w-1 bg-teal-400 rounded-full animate-pulse delay-150 h-2" />
+                  </div>
+                ) : (
+                  <Music className={`w-4 h-4 ${needsGesture ? 'text-amber-500 animate-bounce' : 'text-[#008284]'}`} />
+                )}
 
-              <span className="text-xs font-semibold tracking-tight hidden xs:inline">
-                {isPlaying ? 'Musik Aktif' : 'Musik'}
-              </span>
+                <span className="text-xs font-semibold tracking-tight hidden xs:inline">
+                  {isPlaying ? 'Musik Aktif' : 'Musik'}
+                </span>
+              </button>
+
+              {/* Separator */}
+              <span className={`h-3.5 w-px ${isPlaying ? 'bg-gray-700' : 'bg-gray-200'}`} />
 
               {/* Arrow expand toggle */}
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded((prev) => !prev);
-                }}
-                className="p-0.5 text-gray-400 hover:text-white rounded-md transition-colors"
-                aria-label={isExpanded ? 'Sembunyikan' : 'Buka kontrol'}
+                onClick={() => setIsExpanded((prev) => !prev)}
+                className={`p-1 rounded-full transition-colors cursor-pointer ${
+                  isPlaying
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                }`}
+                aria-label={isExpanded ? 'Sembunyikan kontrol musik' : 'Buka kontrol musik'}
               >
                 {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
               </button>
-            </button>
+            </div>
           </div>
         </div>
       </div>

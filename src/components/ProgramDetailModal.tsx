@@ -74,7 +74,7 @@ export const ProgramDetailModal: React.FC<ProgramDetailModalProps> = ({
                 </span>
               )}
             </div>
-            <h2 className="text-xl sm:text-2xl font-semibold text-[#071F20] tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#071F20] tracking-tight">
               {program.title}
             </h2>
             <p className="text-xs sm:text-sm text-gray-600 mt-1 leading-relaxed font-normal">
