@@ -22,6 +22,9 @@ import {
   Database,
   PlusCircle,
   ChevronRight,
+  Film,
+  Music,
+  Camera,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { IrsyadulAmalLogo } from '../IrsyadulAmalLogo';
@@ -36,6 +39,9 @@ export type AdminMenuKey =
   | 'content_cta'
   | 'content_footer'
   | 'content_sections'
+  // MULTIMEDIA BARU (VIDEO & MUSIK)
+  | 'videos'
+  | 'music_settings'
   // PROGRAM
   | 'programs'
   | 'program_add'
@@ -124,6 +130,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             { key: 'content_footer', label: 'Footer' },
             { key: 'content_sections', label: 'Susunan Section' },
           ],
+        },
+        {
+          key: 'videos',
+          label: 'Video Kegiatan',
+          icon: <Film className="w-4 h-4" />,
+          badge: 'YouTube',
         },
       ],
     },
@@ -216,6 +228,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             { key: 'settings_seo', label: 'SEO' },
             { key: 'settings_admin', label: 'Admin' },
           ],
+        },
+        {
+          key: 'music_settings',
+          label: 'Background Music',
+          icon: <Music className="w-4 h-4" />,
+          badge: 'Audio',
         },
         {
           key: 'supabase_schema',

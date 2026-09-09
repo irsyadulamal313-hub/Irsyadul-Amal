@@ -10,6 +10,8 @@ import { AdminBankAccountsSection } from './AdminBankAccountsSection';
 import { AdminWhatsAppSection } from './AdminWhatsAppSection';
 import { AdminReportsSection } from './AdminReportsSection';
 import { AdminDocumentationSection } from './AdminDocumentationSection';
+import { AdminVideosSection } from './AdminVideosSection';
+import { AdminMusicSection } from './AdminMusicSection';
 import { AdminMediaSection } from './AdminMediaSection';
 import { AdminSettingsSection } from './AdminSettingsSection';
 import { AdminSupabaseSchemaView } from './AdminSupabaseSchemaView';
@@ -39,6 +41,7 @@ export const AdminMainView: React.FC<AdminMainViewProps> = ({ onReturnToPublic }
       {activeMenu === 'content_cta' && <AdminContentSection initialTab="cta" />}
       {activeMenu === 'content_footer' && <AdminContentSection initialTab="footer" />}
       {activeMenu === 'content_sections' && <AdminContentSection initialTab="sections" />}
+      {activeMenu === 'videos' && <AdminVideosSection />}
 
       {/* PROGRAM */}
       {(activeMenu === 'programs' || activeMenu === 'program_add') && <AdminProgramsSection />}
@@ -72,6 +75,7 @@ export const AdminMainView: React.FC<AdminMainViewProps> = ({ onReturnToPublic }
       {activeMenu === 'settings_nav' && <AdminSettingsSection subTab="nav" />}
       {activeMenu === 'settings_seo' && <AdminSettingsSection subTab="seo" />}
       {activeMenu === 'settings_admin' && <AdminSettingsSection subTab="admin" />}
+      {activeMenu === 'music_settings' && <AdminMusicSection />}
 
       {/* SUPABASE */}
       {activeMenu === 'supabase_schema' && <AdminSupabaseSchemaView />}

@@ -65,14 +65,41 @@ export interface OfficialReportItem {
 export interface DocumentationItem {
   id: string;
   title: string;
-  programName: string;
-  category: string;
-  date: string;
-  location: string;
+  caption?: string;
+  programName?: string;
+  category?: string;
+  date?: string;
+  location?: string;
   imageUrl: string;
-  story: string;
-  targetBeneficiary: string;
+  story?: string;
+  targetBeneficiary?: string;
   videoUrl?: string;
+  sort_order?: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface VideoItem {
+  id: string;
+  title: string;
+  description: string;
+  youtube_url: string;
+  thumbnail_url?: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MusicSettings {
+  music_enabled: boolean;
+  youtube_url: string;
+  autoplay_enabled: boolean;
+  loop_enabled: boolean;
+  default_volume: number; // 0 to 100
+  title?: string;
+  updated_at?: string;
 }
 
 export interface DonorRecord {
@@ -131,12 +158,14 @@ export interface TestimonialItem {
 export interface SectionVisibility {
   hero: boolean;
   stats: boolean;
-  about: boolean;
   featuredPrograms: boolean;
   bankAccounts: boolean;
+  videos?: boolean;
+  documentations?: boolean;
+  about: boolean;
+  banner: boolean;
   cta: boolean;
   testimonials: boolean;
-  banner: boolean;
   gallery: boolean;
   footer: boolean;
 }
@@ -157,6 +186,12 @@ export interface HomepageContent {
   ctaTitle: string;
   ctaSubtitle: string;
   ctaButtonText: string;
+  videoSectionTitle?: string;
+  videoSectionSubtitle?: string;
+  videoSectionEnabled?: boolean;
+  documentationSectionTitle?: string;
+  documentationSectionSubtitle?: string;
+  documentationSectionEnabled?: boolean;
   bannerTitle?: string;
   bannerSubtitle?: string;
   bannerImageUrl?: string;

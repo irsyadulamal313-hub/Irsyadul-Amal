@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { NavPage, ProgramItem } from '../types';
+import React, { useState, useMemo } from 'react';
+import { NavPage, ProgramItem, VideoItem, DocumentationItem } from '../types';
 import {
   Heart,
   ArrowRight,
@@ -12,6 +12,10 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { useCMS } from '../data/cmsContext';
+import { HomepageVideoSection } from '../components/HomepageVideoSection';
+import { VideoPlayerModal } from '../components/VideoPlayerModal';
+import { DocumentationCarouselSection } from '../components/DocumentationCarouselSection';
+import { PhotoLightboxModal } from '../components/PhotoLightboxModal';
 
 interface HomePageProps {
   programs: ProgramItem[];
@@ -26,9 +30,14 @@ export const HomePage: React.FC<HomePageProps> = ({
   onSelectProgramDetail,
   onOpenQuickDonation,
 }) => {
-  const { homepageContent, bankGroups, siteSettings, donors } = useCMS();
+  const { homepageContent, bankGroups, siteSettings, donors, videos, documentations } = useCMS();
   const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
   const [imgError, setImgError] = useState<Record<string, boolean>>({});
+
+  // Modals for video & documentation photo preview
+  const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   const handleCopy = (accNumber: string) => {
     navigator.clipboard.writeText(accNumber);
@@ -44,6 +53,8 @@ export const HomePage: React.FC<HomePageProps> = ({
     hero: true,
     stats: true,
     featuredPrograms: true,
+    videos: true,
+    documentations: true,
     bankAccounts: true,
     about: true,
     banner: true,
@@ -53,16 +64,36 @@ export const HomePage: React.FC<HomePageProps> = ({
     footer: true,
   };
 
-  const sectionsOrder = homepageContent.sectionsOrder || [
+  const defaultSectionsOrder = [
     'hero',
     'stats',
     'featuredPrograms',
+    'videos',
+    'documentations',
     'bankAccounts',
     'about',
     'banner',
     'cta',
     'testimonials',
   ];
+
+  const sectionsOrder = useMemo(() => {
+    const baseOrder = homepageContent.sectionsOrder || defaultSectionsOrder;
+    const finalOrder = [...baseOrder];
+    
+    // Ensure videos and documentations exist in order
+    if (!finalOrder.includes('videos')) {
+      const pIdx = finalOrder.indexOf('featuredPrograms');
+      if (pIdx !== -1) finalOrder.splice(pIdx + 1, 0, 'videos');
+      else finalOrder.push('videos');
+    }
+    if (!finalOrder.includes('documentations')) {
+      const vIdx = finalOrder.indexOf('videos');
+      if (vIdx !== -1) finalOrder.splice(vIdx + 1, 0, 'documentations');
+      else finalOrder.push('documentations');
+    }
+    return finalOrder;
+  }, [homepageContent.sectionsOrder]);
 
   // 1. HERO SECTION
   const renderHero = () => (
@@ -494,24 +525,76 @@ export const HomePage: React.FC<HomePageProps> = ({
     </section>
   );
 
+  // 8. VIDEOS SECTION
+  const renderVideos = () => (
+    <HomepageVideoSection
+      key="videos"
+      videos={videos}
+      title={homepageContent.videoSectionTitle || 'Kenali Lebih Dekat IRSYADUL AMAL'}
+      subtitle={homepageContent.videoSectionSubtitle || 'Profil lembaga dan dokumentasi program dalam bentuk video.'}
+      onSelectVideo={(video) => setSelectedVideo(video)}
+    />
+  );
+
+  // 9. DOCUMENTATIONS SECTION (CAROUSEL)
+  const renderDocumentations = () => (
+    <DocumentationCarouselSection
+      key="documentations"
+      items={documentations}
+      title={homepageContent.documentationTitle || 'Dokumentasi Kegiatan & Penyaluran'}
+      subtitle={
+        homepageContent.documentationSubtitle ||
+        'Bukti nyata amanah para donatur yang telah terdistribusi langsung kepada para penerima manfaat.'
+      }
+      onSelectPhoto={(idx) => {
+        setLightboxIndex(idx);
+        setIsLightboxOpen(true);
+      }}
+    />
+  );
+
   const sectionRenderers: Record<string, () => React.ReactNode> = {
     hero: renderHero,
     stats: renderStats,
     featuredPrograms: renderFeaturedPrograms,
+    videos: renderVideos,
+    documentations: renderDocumentations,
     bankAccounts: renderBankAccounts,
     about: renderAbout,
     banner: renderBanner,
     cta: renderCTA,
   };
 
+  const activeDocumentations = useMemo(() => {
+    return documentations.filter((d) => d.is_active !== false).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  }, [documentations]);
+
   return (
-    <div className="space-y-10 sm:space-y-14 animate-in fade-in duration-200 font-sans">
-      {sectionsOrder.map((secKey) => {
-        const isVisible = sectionsVisibility[secKey as keyof typeof sectionsVisibility] !== false;
-        if (!isVisible) return null;
-        const renderer = sectionRenderers[secKey];
-        return renderer ? renderer() : null;
-      })}
-    </div>
+    <>
+      <div className="space-y-10 sm:space-y-14 animate-in fade-in duration-200 font-sans">
+        {sectionsOrder.map((secKey) => {
+          const isVisible = sectionsVisibility[secKey as keyof typeof sectionsVisibility] !== false;
+          if (!isVisible) return null;
+          const renderer = sectionRenderers[secKey];
+          return renderer ? renderer() : null;
+        })}
+      </div>
+
+      {/* Video Player Modal */}
+      <VideoPlayerModal
+        video={selectedVideo}
+        isOpen={!!selectedVideo}
+        onClose={() => setSelectedVideo(null)}
+      />
+
+      {/* Photo Lightbox Modal */}
+      <PhotoLightboxModal
+        items={activeDocumentations}
+        currentIndex={lightboxIndex}
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+        onNavigate={(newIdx) => setLightboxIndex(newIdx)}
+      />
+    </>
   );
 };

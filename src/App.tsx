@@ -3,6 +3,7 @@ import { NavPage, ProgramItem, DocumentationItem } from './types';
 import { useCMS } from './data/cmsContext';
 import { Header } from './components/Header';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
+import { BackgroundMusicPlayer } from './components/BackgroundMusicPlayer';
 import { Footer } from './components/Footer';
 import { HomePage } from './pages/HomePage';
 import { DonationPage } from './pages/DonationPage';
@@ -245,8 +246,9 @@ export default function App() {
         onOpenAdmin={handleOpenAdmin}
       />
 
-      {/* 4. FLOATING WHATSAPP BUTTON (ON ALL PAGES) */}
+      {/* 4. FLOATING WHATSAPP & BACKGROUND MUSIC PLAYER (ON ALL PAGES) */}
       <FloatingWhatsApp />
+      <BackgroundMusicPlayer />
 
       {/* 5. MODALS */}
       {/* Detail Program Modal */}

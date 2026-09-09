@@ -9,6 +9,8 @@ import {
   DonorProfile,
   TestimonialItem,
   MediaItem,
+  VideoItem,
+  MusicSettings,
 } from '../types';
 
 export const INITIAL_SITE_SETTINGS: SiteSettings = {
@@ -49,6 +51,12 @@ export const INITIAL_HOMEPAGE_CONTENT: HomepageContent = {
   ctaTitle: 'Bersama Menghadirkan Senyum dan Harapan',
   ctaSubtitle: 'Mari ambil bagian dalam barisan kebaikan untuk memajukan saudara-saudara kita di pelosok Garut.',
   ctaButtonText: 'DONASI SEKARANG',
+  videoSectionTitle: 'Kenali Lebih Dekat IRSYADUL AMAL',
+  videoSectionSubtitle: 'Profil lembaga dan dokumentasi program dalam bentuk video.',
+  videoSectionEnabled: true,
+  documentationSectionTitle: 'Dokumentasi Kegiatan',
+  documentationSectionSubtitle: 'Jejak kegiatan dan manfaat yang telah dilaksanakan.',
+  documentationSectionEnabled: true,
   bannerTitle: 'Layanan Jemput Zakat & Donasi Garut',
   bannerSubtitle: 'Petugas resmi Irsyadul Amal siap bersilaturahmi dan menjemput amanah donasi ke kediaman atau kantor Anda.',
   bannerImageUrl: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=900&q=80',
@@ -58,12 +66,14 @@ export const INITIAL_HOMEPAGE_CONTENT: HomepageContent = {
   sectionsVisibility: {
     hero: true,
     stats: true,
-    about: true,
     featuredPrograms: true,
     bankAccounts: true,
+    videos: true,
+    documentations: true,
+    about: true,
+    banner: true,
     cta: true,
     testimonials: false,
-    banner: true,
     gallery: true,
     footer: true,
   },
@@ -72,6 +82,8 @@ export const INITIAL_HOMEPAGE_CONTENT: HomepageContent = {
     'stats',
     'featuredPrograms',
     'bankAccounts',
+    'videos',
+    'documentations',
     'about',
     'banner',
     'cta',
@@ -281,6 +293,7 @@ export const INITIAL_DOCUMENTATION_DATA: DocumentationItem[] = [
   {
     id: 'doc-1',
     title: 'Distribusi Mushaf Al-Quran ke Majelis Santri',
+    caption: 'Penyaluran mushaf Al-Quran titipan donatur kepada santri binaan untuk menunjang kegiatan mengaji harian.',
     programName: "Tebar Mushaf Al-Qur'an",
     category: "Al-Qur'an",
     date: 'Dokumentasi Lapangan',
@@ -288,10 +301,13 @@ export const INITIAL_DOCUMENTATION_DATA: DocumentationItem[] = [
     imageUrl: 'https://images.unsplash.com/photo-1609599006353-e629aaabfeae?auto=format&fit=crop&w=800&q=80',
     story: 'Penyaluran mushaf Al-Quran titipan donatur kepada santri binaan untuk menunjang kegiatan mengaji harian.',
     targetBeneficiary: 'Santri & Pengajar Majelis',
+    sort_order: 1,
+    is_active: true,
   },
   {
     id: 'doc-2',
     title: 'Survei dan Persiapan Pengeboran Air Bersih',
+    caption: 'Pengecekan titik mata air dan koordinasi teknis pengeboran sarana air bersih untuk warga.',
     programName: 'Wakaf Sumur Bor & Air Bersih',
     category: 'Wakaf',
     date: 'Dokumentasi Lapangan',
@@ -299,10 +315,13 @@ export const INITIAL_DOCUMENTATION_DATA: DocumentationItem[] = [
     imageUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb186c5f8?auto=format&fit=crop&w=800&q=80',
     story: 'Pengecekan titik mata air dan koordinasi teknis pengeboran sarana air bersih untuk warga.',
     targetBeneficiary: 'Warga Sekitar & Jamaah',
+    sort_order: 2,
+    is_active: true,
   },
   {
     id: 'doc-3',
     title: 'Penyaluran Santunan Perlengkapan Belajar Yatim',
+    caption: 'Pemberian santunan peralatan sekolah dan bantuan pangan penunjang kesehatan anak-anak yatim.',
     programName: 'Santunan Yatim Dhuafa',
     category: 'Sosial',
     date: 'Dokumentasi Lapangan',
@@ -310,10 +329,13 @@ export const INITIAL_DOCUMENTATION_DATA: DocumentationItem[] = [
     imageUrl: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=800&q=80',
     story: 'Pemberian santunan peralatan sekolah dan bantuan pangan penunjang kesehatan anak-anak yatim.',
     targetBeneficiary: 'Anak Yatim Dhuafa',
+    sort_order: 3,
+    is_active: true,
   },
   {
     id: 'doc-4',
     title: 'Silaturahmi dan Penyaluran Sembako Lansia Dhuafa',
+    caption: 'Relawan berkunjung langsung menyapa para lansia sebatang kara dan menyerahkan paket kebutuhan pangan pokok.',
     programName: 'Peduli Lansia Dhuafa',
     category: 'Kemanusiaan',
     date: 'Dokumentasi Lapangan',
@@ -321,6 +343,8 @@ export const INITIAL_DOCUMENTATION_DATA: DocumentationItem[] = [
     imageUrl: 'https://images.unsplash.com/photo-1516307365426-bea591f05011?auto=format&fit=crop&w=800&q=80',
     story: 'Relawan berkunjung langsung menyapa para lansia sebatang kara dan menyerahkan paket kebutuhan pangan pokok.',
     targetBeneficiary: 'Lansia Prasejahtera',
+    sort_order: 4,
+    is_active: true,
   },
 ];
 
@@ -368,3 +392,43 @@ export const INITIAL_MEDIA_DATA: MediaItem[] = [
     isPlaceholder: true,
   },
 ];
+
+export const INITIAL_VIDEOS_DATA: VideoItem[] = [
+  {
+    id: 'vid-profil',
+    title: 'Profil Yayasan IRSYADUL AMAL',
+    description: 'Profil lembaga dan rekam jejak amanah kemanusiaan Irsyadul Amal dalam melayani masyarakat.',
+    youtube_url: 'https://www.youtube.com/watch?v=LyfhGGYiPNk',
+    thumbnail_url: 'https://img.youtube.com/vi/LyfhGGYiPNk/hqdefault.jpg',
+    sort_order: 1,
+    is_active: true,
+  },
+  {
+    id: 'vid-wakaf-air',
+    title: 'Program Wakaf Air Bersih',
+    description: 'Pengeboran sumur dan penyediaan sarana air bersih berkelanjutan bagi warga pelosok yang membutuhkan.',
+    youtube_url: 'https://www.youtube.com/watch?v=9yb30W3uEzQ',
+    thumbnail_url: 'https://img.youtube.com/vi/9yb30W3uEzQ/hqdefault.jpg',
+    sort_order: 2,
+    is_active: true,
+  },
+  {
+    id: 'vid-santunan',
+    title: 'Program Santunan Yatim & Dhuafa',
+    description: 'Penyaluran bantuan nutrisi, pendidikan, dan santunan berkala untuk anak yatim serta kaum dhuafa.',
+    youtube_url: 'https://www.youtube.com/watch?v=fpGwFSB_EYw',
+    thumbnail_url: 'https://img.youtube.com/vi/fpGwFSB_EYw/hqdefault.jpg',
+    sort_order: 3,
+    is_active: true,
+  },
+];
+
+export const INITIAL_MUSIC_SETTINGS: MusicSettings = {
+  music_enabled: true,
+  youtube_url: 'https://www.youtube.com/watch?v=eLHYWmZEiHs&list=RDeLHYWmZEiHs&start_radio=1',
+  autoplay_enabled: true,
+  loop_enabled: true,
+  default_volume: 40,
+  title: 'Alunan Penyejuk Jiwa - IRSYADUL AMAL',
+  updated_at: new Date().toISOString(),
+};

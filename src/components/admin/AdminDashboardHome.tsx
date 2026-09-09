@@ -16,6 +16,8 @@ import {
   AlertCircle,
   Database,
   RefreshCw,
+  Film,
+  Music,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { AdminMenuKey } from './AdminLayout';
@@ -334,6 +336,44 @@ export const AdminDashboardHome: React.FC<AdminDashboardHomeProps> = ({
               </div>
               <p className="text-xs text-[#647B7C] pl-9">
                 Pertanggungjawaban berkala untuk transparansi donatur.
+              </p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#008284] group-hover:translate-x-1 transition-all shrink-0 mt-1" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigateMenu('videos')}
+            className="p-4 bg-white rounded-2xl border border-[#E0EAEA] hover:border-[#008284] text-left transition-all group flex items-start justify-between shadow-2xs"
+          >
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors">
+                  <Film className="w-4 h-4" />
+                </span>
+                <span className="font-bold text-sm text-[#071F20]">Kelola Video Beranda</span>
+              </div>
+              <p className="text-xs text-[#647B7C] pl-9">
+                Atur video YouTube profil & wakaf air bersih di halaman depan.
+              </p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#008284] group-hover:translate-x-1 transition-all shrink-0 mt-1" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigateMenu('music_settings')}
+            className="p-4 bg-white rounded-2xl border border-[#E0EAEA] hover:border-[#008284] text-left transition-all group flex items-start justify-between shadow-2xs"
+          >
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                  <Music className="w-4 h-4" />
+                </span>
+                <span className="font-bold text-sm text-[#071F20]">Background Music</span>
+              </div>
+              <p className="text-xs text-[#647B7C] pl-9">
+                Atur musik latar religi/nasyid & floating player audio website.
               </p>
             </div>
             <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#008284] group-hover:translate-x-1 transition-all shrink-0 mt-1" />

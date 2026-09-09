@@ -5,6 +5,9 @@ import {
   ProgramItem,
   BankAccountItem,
   OfficialReportItem,
+  VideoItem,
+  DocumentationItem,
+  MusicSettings,
 } from '../types';
 
 /**
@@ -164,6 +167,12 @@ export async function fetchHomepageContentFromSupabase(): Promise<{ data: Partia
       ctaTitle: data.cta_title || 'Bersama Menghadirkan Senyum dan Harapan',
       ctaSubtitle: data.cta_subtitle || '',
       ctaButtonText: data.cta_button_text || 'DONASI SEKARANG',
+      videoSectionTitle: data.video_section_title || 'Kenali Lebih Dekat IRSYADUL AMAL',
+      videoSectionSubtitle: data.video_section_subtitle || 'Profil lembaga dan dokumentasi program dalam bentuk video.',
+      videoSectionEnabled: data.video_section_enabled !== false,
+      documentationSectionTitle: data.documentation_section_title || 'Dokumentasi Kegiatan',
+      documentationSectionSubtitle: data.documentation_section_subtitle || 'Jejak kegiatan dan manfaat yang telah dilaksanakan.',
+      documentationSectionEnabled: data.documentation_section_enabled !== false,
       bannerTitle: data.banner_title || '',
       bannerSubtitle: data.banner_subtitle || '',
       bannerImageUrl: data.banner_image_url || '',
@@ -176,6 +185,8 @@ export async function fetchHomepageContentFromSupabase(): Promise<{ data: Partia
         'stats',
         'featuredPrograms',
         'bankAccounts',
+        'videos',
+        'documentations',
         'about',
         'banner',
         'cta',
@@ -223,6 +234,12 @@ export async function saveHomepageContentToSupabase(content: HomepageContent): P
       cta_title: content.ctaTitle || '',
       cta_subtitle: content.ctaSubtitle || '',
       cta_button_text: content.ctaButtonText || 'DONASI SEKARANG',
+      video_section_title: content.videoSectionTitle || 'Kenali Lebih Dekat IRSYADUL AMAL',
+      video_section_subtitle: content.videoSectionSubtitle || 'Profil lembaga dan dokumentasi program dalam bentuk video.',
+      video_section_enabled: content.videoSectionEnabled !== false,
+      documentation_section_title: content.documentationSectionTitle || 'Dokumentasi Kegiatan',
+      documentation_section_subtitle: content.documentationSectionSubtitle || 'Jejak kegiatan dan manfaat yang telah dilaksanakan.',
+      documentation_section_enabled: content.documentationSectionEnabled !== false,
       banner_title: content.bannerTitle || '',
       banner_subtitle: content.bannerSubtitle || '',
       banner_image_url: content.bannerImageUrl || '',
@@ -569,6 +586,288 @@ export async function deleteReportFromSupabase(id: string): Promise<{ success: b
       .from('reports')
       .delete()
       .eq('id', id);
+
+    return { success: !error, error };
+  } catch (err: any) {
+    return { success: false, error: err };
+  }
+}
+
+// ============================================================
+// 7. VIDEOS (CMS Video Beranda)
+// ============================================================
+export async function fetchVideosFromSupabase(): Promise<{ data: VideoItem[] | null; error: any }> {
+  try {
+    const client = getSupabase();
+    if (!client || !isSupabaseConfigured()) {
+      return { data: null, error: 'Supabase client not configured' };
+    }
+
+    const { data, error } = await client
+      .from('videos')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.warn('[Supabase] Error fetching videos:', error.message);
+      return { data: null, error };
+    }
+
+    if (!data || data.length === 0) {
+      return { data: [], error: null };
+    }
+
+    const videos: VideoItem[] = data.map((row: any) => ({
+      id: String(row.id),
+      title: row.title || 'Video Kegiatan',
+      description: row.description || '',
+      youtube_url: row.youtube_url || '',
+      thumbnail_url: row.thumbnail_url || '',
+      sort_order: typeof row.sort_order === 'number' ? row.sort_order : 0,
+      is_active: row.is_active !== false,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }));
+
+    return { data: videos, error: null };
+  } catch (err: any) {
+    console.warn('[Supabase] Exception fetching videos:', err?.message);
+    return { data: null, error: err };
+  }
+}
+
+export async function upsertVideoToSupabase(video: VideoItem): Promise<{ success: boolean; data?: any; error: any }> {
+  try {
+    const client = getSupabase();
+    if (!client || !isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase client not configured' };
+    }
+
+    const payload: Record<string, any> = {
+      title: video.title,
+      description: video.description || '',
+      youtube_url: video.youtube_url,
+      thumbnail_url: video.thumbnail_url || '',
+      sort_order: video.sort_order || 0,
+      is_active: video.is_active !== false,
+      updated_at: new Date().toISOString(),
+    };
+
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(video.id);
+    if (isUUID) {
+      payload.id = video.id;
+    }
+
+    const { data, error } = await client
+      .from('videos')
+      .upsert(payload, { onConflict: isUUID ? 'id' : undefined })
+      .select()
+      .maybeSingle();
+
+    return { success: !error, data, error };
+  } catch (err: any) {
+    return { success: false, error: err };
+  }
+}
+
+export async function deleteVideoFromSupabase(id: string): Promise<{ success: boolean; error: any }> {
+  try {
+    const client = getSupabase();
+    if (!client || !isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase client not configured' };
+    }
+
+    const { error } = await client
+      .from('videos')
+      .delete()
+      .eq('id', id);
+
+    return { success: !error, error };
+  } catch (err: any) {
+    return { success: false, error: err };
+  }
+}
+
+// ============================================================
+// 8. DOCUMENTATIONS (Dokumentasi Kegiatan & Carousel)
+// ============================================================
+export async function fetchDocumentationsFromSupabase(): Promise<{ data: DocumentationItem[] | null; error: any }> {
+  try {
+    const client = getSupabase();
+    if (!client || !isSupabaseConfigured()) {
+      return { data: null, error: 'Supabase client not configured' };
+    }
+
+    const { data, error } = await client
+      .from('documentations')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.warn('[Supabase] Error fetching documentations:', error.message);
+      return { data: null, error };
+    }
+
+    if (!data || data.length === 0) {
+      return { data: [], error: null };
+    }
+
+    const docs: DocumentationItem[] = data.map((row: any, idx: number) => ({
+      id: String(row.id),
+      title: row.title || 'Dokumentasi Lapangan',
+      caption: row.caption || row.story || '',
+      programName: row.program_name || '',
+      category: row.category || 'Dokumentasi',
+      date: row.activity_date || row.date || 'Dokumentasi Lapangan',
+      location: row.location || 'Garut',
+      imageUrl: row.image_url || '',
+      story: row.story || row.caption || '',
+      targetBeneficiary: row.target_beneficiary || '',
+      videoUrl: row.video_url || '',
+      sort_order: typeof row.sort_order === 'number' ? row.sort_order : idx + 1,
+      is_active: row.is_active !== false,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }));
+
+    return { data: docs, error: null };
+  } catch (err: any) {
+    console.warn('[Supabase] Exception fetching documentations:', err?.message);
+    return { data: null, error: err };
+  }
+}
+
+export async function upsertDocumentationToSupabase(doc: DocumentationItem): Promise<{ success: boolean; data?: any; error: any }> {
+  try {
+    const client = getSupabase();
+    if (!client || !isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase client not configured' };
+    }
+
+    const payload: Record<string, any> = {
+      title: doc.title,
+      caption: doc.caption || doc.story || '',
+      program_name: doc.programName || '',
+      category: doc.category || 'Dokumentasi',
+      activity_date: doc.date || 'Dokumentasi Lapangan',
+      location: doc.location || 'Kabupaten Garut',
+      image_url: doc.imageUrl,
+      story: doc.story || doc.caption || '',
+      target_beneficiary: doc.targetBeneficiary || '',
+      video_url: doc.videoUrl || null,
+      sort_order: doc.sort_order || 0,
+      is_active: doc.is_active !== false,
+      updated_at: new Date().toISOString(),
+    };
+
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doc.id);
+    if (isUUID) {
+      payload.id = doc.id;
+    }
+
+    const { data, error } = await client
+      .from('documentations')
+      .upsert(payload, { onConflict: isUUID ? 'id' : undefined })
+      .select()
+      .maybeSingle();
+
+    return { success: !error, data, error };
+  } catch (err: any) {
+    return { success: false, error: err };
+  }
+}
+
+export async function deleteDocumentationFromSupabase(id: string): Promise<{ success: boolean; error: any }> {
+  try {
+    const client = getSupabase();
+    if (!client || !isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase client not configured' };
+    }
+
+    const { error } = await client
+      .from('documentations')
+      .delete()
+      .eq('id', id);
+
+    return { success: !error, error };
+  } catch (err: any) {
+    return { success: false, error: err };
+  }
+}
+
+// ============================================================
+// 9. BACKGROUND MUSIC SETTINGS
+// ============================================================
+export async function fetchMusicSettingsFromSupabase(): Promise<{ data: MusicSettings | null; error: any }> {
+  try {
+    const client = getSupabase();
+    if (!client || !isSupabaseConfigured()) {
+      return { data: null, error: 'Supabase client not configured' };
+    }
+
+    const { data, error } = await client
+      .from('music_settings')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[Supabase] Error fetching music_settings:', error.message);
+      return { data: null, error };
+    }
+
+    if (!data) {
+      return { data: null, error: null };
+    }
+
+    const music: MusicSettings = {
+      music_enabled: data.music_enabled !== false,
+      youtube_url: data.youtube_url || 'https://www.youtube.com/watch?v=eLHYWmZEiHs&list=RDeLHYWmZEiHs&start_radio=1',
+      autoplay_enabled: data.autoplay_enabled !== false,
+      loop_enabled: data.loop_enabled !== false,
+      default_volume: typeof data.default_volume === 'number' ? data.default_volume : 40,
+      title: data.title || 'Alunan Penyejuk Jiwa - IRSYADUL AMAL',
+      updated_at: data.updated_at,
+    };
+
+    return { data: music, error: null };
+  } catch (err: any) {
+    console.warn('[Supabase] Exception fetching music_settings:', err?.message);
+    return { data: null, error: err };
+  }
+}
+
+export async function saveMusicSettingsToSupabase(music: MusicSettings): Promise<{ success: boolean; error: any }> {
+  try {
+    const client = getSupabase();
+    if (!client || !isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase client not configured' };
+    }
+
+    const { data: existing } = await client
+      .from('music_settings')
+      .select('id')
+      .limit(1)
+      .maybeSingle();
+
+    const payload: Record<string, any> = {
+      music_enabled: music.music_enabled,
+      youtube_url: music.youtube_url,
+      autoplay_enabled: music.autoplay_enabled,
+      loop_enabled: music.loop_enabled,
+      default_volume: music.default_volume,
+      title: music.title || 'Alunan Penyejuk Jiwa - IRSYADUL AMAL',
+      updated_at: new Date().toISOString(),
+    };
+
+    if (existing?.id) {
+      payload.id = existing.id;
+    }
+
+    const { error } = await client
+      .from('music_settings')
+      .upsert(payload);
 
     return { success: !error, error };
   } catch (err: any) {

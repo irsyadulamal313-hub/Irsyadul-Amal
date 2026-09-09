@@ -11,6 +11,8 @@ import {
   DonorProfile,
   TestimonialItem,
   MediaItem,
+  VideoItem,
+  MusicSettings,
 } from '../types';
 import {
   INITIAL_SITE_SETTINGS,
@@ -24,6 +26,8 @@ import {
   INITIAL_DONORS_DATA,
   INITIAL_TESTIMONIALS_DATA,
   INITIAL_MEDIA_DATA,
+  INITIAL_VIDEOS_DATA,
+  INITIAL_MUSIC_SETTINGS,
 } from './cmsInitialData';
 
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
@@ -42,6 +46,14 @@ import {
   fetchReportsFromSupabase,
   upsertReportToSupabase,
   deleteReportFromSupabase,
+  fetchVideosFromSupabase,
+  upsertVideoToSupabase,
+  deleteVideoFromSupabase,
+  fetchDocumentationsFromSupabase,
+  upsertDocumentationToSupabase,
+  deleteDocumentationFromSupabase,
+  fetchMusicSettingsFromSupabase,
+  saveMusicSettingsToSupabase,
 } from '../lib/cmsSupabaseService';
 
 const LOCAL_STORAGE_KEY = 'irsyadul_amal_cms_state_v1';
@@ -65,6 +77,8 @@ interface CMSContextType {
   bankGroups: BankCategoryGroup[];
   reports: OfficialReportItem[];
   documentations: DocumentationItem[];
+  videos: VideoItem[];
+  musicSettings: MusicSettings;
   donations: DonationTransaction[];
   donors: DonorProfile[];
   testimonials: TestimonialItem[];
@@ -105,10 +119,22 @@ interface CMSContextType {
   updateReport: (report: OfficialReportItem) => void;
   deleteReport: (id: string) => void;
   
+  // Videos
+  addVideo: (video: VideoItem) => void;
+  updateVideo: (video: VideoItem) => void;
+  deleteVideo: (id: string) => void;
+  toggleVideoActive: (id: string) => void;
+  reorderVideos: (videos: VideoItem[]) => void;
+
+  // Background Music
+  updateMusicSettings: (settings: Partial<MusicSettings>) => void;
+
   // Documentations
   addDocumentation: (doc: DocumentationItem) => void;
   updateDocumentation: (doc: DocumentationItem) => void;
   deleteDocumentation: (id: string) => void;
+  toggleDocumentationActive: (id: string) => void;
+  reorderDocumentations: (docs: DocumentationItem[]) => void;
   
   // Donations
   addDonation: (don: DonationTransaction) => void;
@@ -204,6 +230,24 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return saved ? JSON.parse(saved) : INITIAL_DOCUMENTATION_DATA;
     } catch {
       return INITIAL_DOCUMENTATION_DATA;
+    }
+  });
+
+  const [videos, setVideos] = useState<VideoItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_videos`);
+      return saved ? JSON.parse(saved) : INITIAL_VIDEOS_DATA;
+    } catch {
+      return INITIAL_VIDEOS_DATA;
+    }
+  });
+
+  const [musicSettings, setMusicSettings] = useState<MusicSettings>(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_music`);
+      return saved ? JSON.parse(saved) : INITIAL_MUSIC_SETTINGS;
+    } catch {
+      return INITIAL_MUSIC_SETTINGS;
     }
   });
 
@@ -314,12 +358,15 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsSupabaseLoading(true);
 
       try {
-        const [settingsRes, homepageRes, programsRes, banksRes, reportsRes] = await Promise.all([
+        const [settingsRes, homepageRes, programsRes, banksRes, reportsRes, videosRes, docsRes, musicRes] = await Promise.all([
           fetchSiteSettingsFromSupabase(),
           fetchHomepageContentFromSupabase(),
           fetchProgramsFromSupabase(),
           fetchBankAccountsFromSupabase(),
           fetchReportsFromSupabase(),
+          fetchVideosFromSupabase(),
+          fetchDocumentationsFromSupabase(),
+          fetchMusicSettingsFromSupabase(),
         ]);
 
         if (!isMounted) return;
@@ -342,6 +389,18 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (reportsRes.data && reportsRes.data.length > 0) {
           setReports(reportsRes.data);
+        }
+
+        if (videosRes.data && videosRes.data.length > 0) {
+          setVideos(videosRes.data);
+        }
+
+        if (docsRes.data && docsRes.data.length > 0) {
+          setDocumentations(docsRes.data);
+        }
+
+        if (musicRes.data) {
+          setMusicSettings((prev) => ({ ...prev, ...musicRes.data }));
         }
       } catch (err) {
         console.warn('[CMS] Error loading data from Supabase:', err);
@@ -415,6 +474,22 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error(e);
     }
   }, [documentations]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_videos`, JSON.stringify(videos));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [videos]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_music`, JSON.stringify(musicSettings));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [musicSettings]);
 
   useEffect(() => {
     try {
@@ -643,14 +718,84 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Documentation actions
   const addDocumentation = (doc: DocumentationItem) => {
     setDocumentations((prev) => [doc, ...prev]);
+    upsertDocumentationToSupabase(doc);
   };
 
   const updateDocumentation = (doc: DocumentationItem) => {
     setDocumentations((prev) => prev.map((d) => (d.id === doc.id ? doc : d)));
+    upsertDocumentationToSupabase(doc);
   };
 
   const deleteDocumentation = (id: string) => {
     setDocumentations((prev) => prev.filter((d) => d.id !== id));
+    deleteDocumentationFromSupabase(id);
+  };
+
+  const toggleDocumentationActive = (id: string) => {
+    setDocumentations((prev) =>
+      prev.map((d) => {
+        if (d.id === id) {
+          const toggled = { ...d, is_active: d.is_active === false ? true : false };
+          upsertDocumentationToSupabase(toggled);
+          return toggled;
+        }
+        return d;
+      })
+    );
+  };
+
+  const reorderDocumentations = (newDocs: DocumentationItem[]) => {
+    const updated = newDocs.map((doc, idx) => ({ ...doc, sort_order: idx + 1 }));
+    setDocumentations(updated);
+    for (const doc of updated) {
+      upsertDocumentationToSupabase(doc);
+    }
+  };
+
+  // Video actions
+  const addVideo = (video: VideoItem) => {
+    setVideos((prev) => [video, ...prev]);
+    upsertVideoToSupabase(video);
+  };
+
+  const updateVideo = (video: VideoItem) => {
+    setVideos((prev) => prev.map((v) => (v.id === video.id ? video : v)));
+    upsertVideoToSupabase(video);
+  };
+
+  const deleteVideo = (id: string) => {
+    setVideos((prev) => prev.filter((v) => v.id !== id));
+    deleteVideoFromSupabase(id);
+  };
+
+  const toggleVideoActive = (id: string) => {
+    setVideos((prev) =>
+      prev.map((v) => {
+        if (v.id === id) {
+          const toggled = { ...v, is_active: !v.is_active };
+          upsertVideoToSupabase(toggled);
+          return toggled;
+        }
+        return v;
+      })
+    );
+  };
+
+  const reorderVideos = (newVideos: VideoItem[]) => {
+    const updated = newVideos.map((video, idx) => ({ ...video, sort_order: idx + 1 }));
+    setVideos(updated);
+    for (const vid of updated) {
+      upsertVideoToSupabase(vid);
+    }
+  };
+
+  // Music settings actions
+  const updateMusicSettings = (settings: Partial<MusicSettings>) => {
+    setMusicSettings((prev) => {
+      const updated = { ...prev, ...settings, updated_at: new Date().toISOString() };
+      saveMusicSettingsToSupabase(updated);
+      return updated;
+    });
   };
 
   // Donation actions
@@ -730,10 +875,20 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       for (const rep of reports) {
         await upsertReportToSupabase(rep);
       }
+      // 6. Videos
+      for (const vid of videos) {
+        await upsertVideoToSupabase(vid);
+      }
+      // 7. Documentations
+      for (const doc of documentations) {
+        await upsertDocumentationToSupabase(doc);
+      }
+      // 8. Music Settings
+      await saveMusicSettingsToSupabase(musicSettings);
 
       return {
         success: true,
-        message: 'Seluruh data CMS (Pengaturan, Beranda, Program, Rekening, Laporan) berhasil disinkronisasikan ke Supabase.',
+        message: 'Seluruh data CMS (Pengaturan, Beranda, Program, Rekening, Laporan, Video, Dokumentasi, Musik) berhasil disinkronisasikan ke Supabase.',
       };
     } catch (err: any) {
       return {
@@ -752,6 +907,8 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBankAccounts(INITIAL_BANK_ACCOUNTS_DATA);
     setReports(INITIAL_REPORTS_DATA);
     setDocumentations(INITIAL_DOCUMENTATION_DATA);
+    setVideos(INITIAL_VIDEOS_DATA);
+    setMusicSettings(INITIAL_MUSIC_SETTINGS);
     setDonations(INITIAL_DONATIONS_DATA);
     setDonors(INITIAL_DONORS_DATA);
     setTestimonials(INITIAL_TESTIMONIALS_DATA);
@@ -777,6 +934,8 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     bankGroups,
     reports,
     documentations,
+    videos,
+    musicSettings,
     donations,
     donors,
     testimonials,
@@ -812,9 +971,19 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateReport,
     deleteReport,
 
+    addVideo,
+    updateVideo,
+    deleteVideo,
+    toggleVideoActive,
+    reorderVideos,
+
+    updateMusicSettings,
+
     addDocumentation,
     updateDocumentation,
     deleteDocumentation,
+    toggleDocumentationActive,
+    reorderDocumentations,
 
     addDonation,
     updateDonationStatus,

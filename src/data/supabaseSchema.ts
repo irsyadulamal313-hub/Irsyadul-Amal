@@ -148,10 +148,11 @@ CREATE TABLE IF NOT EXISTS reports (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 11. DOCUMENTATIONS (Dokumentasi Kegiatan Lapangan)
+-- 11. DOCUMENTATIONS (Dokumentasi Kegiatan Lapangan & Carousel)
 CREATE TABLE IF NOT EXISTS documentations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
+    caption TEXT,
     program_name VARCHAR(255),
     category VARCHAR(100),
     activity_date VARCHAR(100),
@@ -160,10 +161,39 @@ CREATE TABLE IF NOT EXISTS documentations (
     video_url TEXT,
     story TEXT,
     target_beneficiary VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 12. TESTIMONIALS (Testimonial Penerima Manfaat / Mitra)
+-- 12. VIDEOS (Video Beranda & Profil YouTube)
+CREATE TABLE IF NOT EXISTS videos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    youtube_url TEXT NOT NULL,
+    thumbnail_url TEXT,
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 13. MUSIC SETTINGS (Pengaturan Musik Latar YouTube)
+CREATE TABLE IF NOT EXISTS music_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    music_enabled BOOLEAN DEFAULT TRUE,
+    youtube_url TEXT NOT NULL DEFAULT 'https://www.youtube.com/watch?v=eLHYWmZEiHs&list=RDeLHYWmZEiHs&start_radio=1',
+    autoplay_enabled BOOLEAN DEFAULT TRUE,
+    loop_enabled BOOLEAN DEFAULT TRUE,
+    default_volume INT DEFAULT 40,
+    title VARCHAR(255) DEFAULT 'Alunan Penyejuk Jiwa - IRSYADUL AMAL',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 14. TESTIMONIALS (Testimonial Penerima Manfaat / Mitra)
 CREATE TABLE IF NOT EXISTS testimonials (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
@@ -174,7 +204,7 @@ CREATE TABLE IF NOT EXISTS testimonials (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 13. MEDIA (Media Manager)
+-- 15. MEDIA (Media Manager)
 CREATE TABLE IF NOT EXISTS media (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
@@ -184,7 +214,7 @@ CREATE TABLE IF NOT EXISTS media (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 14. ADMIN USERS (Akses Pengelola)
+-- 16. ADMIN USERS (Akses Pengelola)
 CREATE TABLE IF NOT EXISTS admin_users (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
@@ -194,13 +224,15 @@ CREATE TABLE IF NOT EXISTS admin_users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 15. ROW LEVEL SECURITY (RLS) POLICIES
+-- 17. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE homepage_content ENABLE ROW LEVEL SECURITY;
 ALTER TABLE programs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bank_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documentations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE music_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE donations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE donors ENABLE ROW LEVEL SECURITY;
@@ -211,7 +243,9 @@ CREATE POLICY "Publik dapat membaca homepage" ON homepage_content FOR SELECT USI
 CREATE POLICY "Publik dapat membaca program published" ON programs FOR SELECT USING (is_draft = false);
 CREATE POLICY "Publik dapat membaca rekening aktif" ON bank_accounts FOR SELECT USING (is_active = true);
 CREATE POLICY "Publik dapat membaca laporan published" ON reports FOR SELECT USING (status = 'DIPUBLIKASIKAN');
-CREATE POLICY "Publik dapat membaca dokumentasi" ON documentations FOR SELECT USING (true);
+CREATE POLICY "Publik dapat membaca dokumentasi" ON documentations FOR SELECT USING (is_active = true);
+CREATE POLICY "Publik dapat membaca video aktif" ON videos FOR SELECT USING (is_active = true);
+CREATE POLICY "Publik dapat membaca music settings" ON music_settings FOR SELECT USING (true);
 CREATE POLICY "Publik dapat submit donasi" ON donations FOR INSERT WITH CHECK (true);
 
 -- Kebijakan Tulis Admin (Authenticated)
@@ -220,6 +254,9 @@ CREATE POLICY "Admin dapat mengelola homepage" ON homepage_content FOR ALL TO au
 CREATE POLICY "Admin dapat mengelola programs" ON programs FOR ALL TO authenticated USING (true);
 CREATE POLICY "Admin dapat mengelola rekening" ON bank_accounts FOR ALL TO authenticated USING (true);
 CREATE POLICY "Admin dapat mengelola laporan" ON reports FOR ALL TO authenticated USING (true);
+CREATE POLICY "Admin dapat mengelola dokumentasi" ON documentations FOR ALL TO authenticated USING (true);
+CREATE POLICY "Admin dapat mengelola videos" ON videos FOR ALL TO authenticated USING (true);
+CREATE POLICY "Admin dapat mengelola music settings" ON music_settings FOR ALL TO authenticated USING (true);
 CREATE POLICY "Admin dapat mengelola donasi" ON donations FOR ALL TO authenticated USING (true);
 `;
 
