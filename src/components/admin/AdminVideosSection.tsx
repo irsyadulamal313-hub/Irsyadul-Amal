@@ -11,6 +11,7 @@ import {
   AlertCircle,
   X,
   Check,
+  Loader2,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { VideoItem } from '../../types';
@@ -24,6 +25,8 @@ export const AdminVideosSection: React.FC = () => {
   const [editingVideo, setEditingVideo] = useState<VideoItem | null>(null);
   const [previewVideo, setPreviewVideo] = useState<VideoItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -44,6 +47,7 @@ export const AdminVideosSection: React.FC = () => {
     setDescription('');
     setSortOrder((videos.length || 0) + 1);
     setIsActive(true);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -54,10 +58,11 @@ export const AdminVideosSection: React.FC = () => {
     setDescription(video.description || '');
     setSortOrder(video.sort_order ?? 1);
     setIsActive(video.is_active !== false);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !youtubeUrl.trim()) {
       alert('Judul dan URL YouTube wajib diisi.');
@@ -82,21 +87,51 @@ export const AdminVideosSection: React.FC = () => {
       is_active: isActive,
     };
 
-    if (editingVideo) {
-      updateVideo(payload);
-      showToast('Video berhasil diperbarui!');
-    } else {
-      addVideo(payload);
-      showToast('Video baru berhasil ditambahkan!');
-    }
+    setIsSaving(true);
+    setModalError(null);
 
-    setIsModalOpen(false);
+    try {
+      if (editingVideo) {
+        const res = await updateVideo(payload);
+        if (res.success) {
+          showToast('Video berhasil diperbarui dan tersimpan di database!');
+          setIsModalOpen(false);
+        } else {
+          setModalError(`Gagal memperbarui ke database: ${res.error?.message || 'Terjadi kesalahan'}`);
+        }
+      } else {
+        const res = await addVideo(payload);
+        if (res.success) {
+          showToast('Video baru berhasil ditambahkan dan tersimpan di database!');
+          setIsModalOpen(false);
+        } else {
+          setModalError(`Gagal menambahkan ke database: ${res.error?.message || 'Terjadi kesalahan'}`);
+        }
+      }
+    } catch (err: any) {
+      setModalError(`Terjadi kesalahan sistem: ${err?.message || 'Gagal menyimpan'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = (id: string, videoTitle: string) => {
+  const handleDelete = async (id: string, videoTitle: string) => {
     if (confirm(`Apakah Anda yakin ingin menghapus video "${videoTitle}"?`)) {
-      deleteVideo(id);
-      showToast('Video berhasil dihapus.');
+      const res = await deleteVideo(id);
+      if (res.success) {
+        showToast('Video berhasil dihapus dari database.');
+      } else {
+        alert(`Gagal menghapus video dari database: ${res.error?.message || 'Terjadi kesalahan'}`);
+      }
+    }
+  };
+
+  const handleToggleActive = async (id: string) => {
+    const res = await toggleVideoActive(id);
+    if (res.success) {
+      showToast('Status video berhasil diperbarui.');
+    } else {
+      alert(`Gagal mengubah status video: ${res.error?.message || 'Terjadi kesalahan'}`);
     }
   };
 
@@ -232,7 +267,7 @@ export const AdminVideosSection: React.FC = () => {
                 <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
                   <button
                     type="button"
-                    onClick={() => toggleVideoActive(video.id)}
+                    onClick={() => handleToggleActive(video.id)}
                     className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
                       video.is_active !== false
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
@@ -298,6 +333,13 @@ export const AdminVideosSection: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+              {modalError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{modalError}</span>
+                </div>
+              )}
+
               {/* Judul Video */}
               <div className="space-y-1.5">
                 <label className="font-bold text-gray-700 block">
@@ -403,17 +445,19 @@ export const AdminVideosSection: React.FC = () => {
               <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
+                  disabled={isSaving}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-bold cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-bold cursor-pointer disabled:opacity-50"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  disabled={!isInputValid}
-                  className="px-5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-bold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  disabled={!isInputValid || isSaving}
+                  className="px-5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-bold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
                 >
-                  {editingVideo ? 'Simpan Perubahan' : 'Tambahkan Video'}
+                  {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {isSaving ? 'Menyimpan...' : editingVideo ? 'Simpan Perubahan' : 'Tambahkan Video'}
                 </button>
               </div>
             </form>

@@ -11,6 +11,8 @@ import {
   Image as ImageIcon,
   Eye,
   Camera,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { DocumentationItem } from '../../types';
@@ -23,6 +25,8 @@ export const AdminDocumentationSection: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<DocumentationItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Lightbox preview state
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -59,6 +63,7 @@ export const AdminDocumentationSection: React.FC = () => {
     setTargetBeneficiary('Warga Prasejahtera');
     setSortOrder((documentations.length || 0) + 1);
     setIsActive(true);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -74,6 +79,7 @@ export const AdminDocumentationSection: React.FC = () => {
     setTargetBeneficiary(doc.targetBeneficiary || '');
     setSortOrder(doc.sort_order ?? 1);
     setIsActive(doc.is_active !== false);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -90,7 +96,7 @@ export const AdminDocumentationSection: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !imageUrl.trim()) {
       alert('Judul dan URL Foto wajib diisi.');
@@ -111,21 +117,51 @@ export const AdminDocumentationSection: React.FC = () => {
       is_active: isActive,
     };
 
-    if (editingDoc) {
-      updateDocumentation(payload);
-      showToast('Dokumentasi diperbarui!');
-    } else {
-      addDocumentation(payload);
-      showToast('Dokumentasi baru berhasil ditambahkan!');
-    }
+    setIsSaving(true);
+    setModalError(null);
 
-    setIsModalOpen(false);
+    try {
+      if (editingDoc) {
+        const res = await updateDocumentation(payload);
+        if (res.success) {
+          showToast('Dokumentasi berhasil diperbarui di database!');
+          setIsModalOpen(false);
+        } else {
+          setModalError(`Gagal memperbarui dokumentasi: ${res.error?.message || 'Terjadi kesalahan'}`);
+        }
+      } else {
+        const res = await addDocumentation(payload);
+        if (res.success) {
+          showToast('Dokumentasi baru berhasil ditambahkan ke database!');
+          setIsModalOpen(false);
+        } else {
+          setModalError(`Gagal menambahkan dokumentasi: ${res.error?.message || 'Terjadi kesalahan'}`);
+        }
+      }
+    } catch (err: any) {
+      setModalError(`Terjadi kesalahan sistem: ${err?.message || 'Gagal menyimpan'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = (id: string, docTitle: string) => {
+  const handleDelete = async (id: string, docTitle: string) => {
     if (confirm(`Hapus dokumentasi "${docTitle}"?`)) {
-      deleteDocumentation(id);
-      showToast('Dokumentasi dihapus.');
+      const res = await deleteDocumentation(id);
+      if (res.success) {
+        showToast('Dokumentasi berhasil dihapus dari database.');
+      } else {
+        alert(`Gagal menghapus dokumentasi: ${res.error?.message || 'Terjadi kesalahan'}`);
+      }
+    }
+  };
+
+  const handleToggleActive = async (id: string) => {
+    const res = await toggleDocumentationActive(id);
+    if (res.success) {
+      showToast('Status aktif dokumentasi berhasil diubah.');
+    } else {
+      alert(`Gagal mengubah status dokumentasi: ${res.error?.message || 'Terjadi kesalahan'}`);
     }
   };
 
@@ -242,7 +278,7 @@ export const AdminDocumentationSection: React.FC = () => {
               <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  onClick={() => toggleDocumentationActive(doc.id)}
+                  onClick={() => handleToggleActive(doc.id)}
                   className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
                     doc.is_active !== false
                       ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
@@ -310,6 +346,13 @@ export const AdminDocumentationSection: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+              {modalError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{modalError}</span>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="font-bold text-gray-700 block">
                   Judul Dokumentasi <span className="text-rose-500">*</span>
@@ -453,16 +496,19 @@ export const AdminDocumentationSection: React.FC = () => {
               <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
+                  disabled={isSaving}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-bold cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-bold cursor-pointer disabled:opacity-50"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                  disabled={isSaving}
+                  className="px-5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {editingDoc ? 'Simpan Perubahan' : 'Tambahkan Dokumentasi'}
+                  {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {isSaving ? 'Menyimpan ke Supabase...' : editingDoc ? 'Simpan Perubahan' : 'Tambahkan Dokumentasi'}
                 </button>
               </div>
             </form>

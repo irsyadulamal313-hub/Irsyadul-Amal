@@ -11,6 +11,8 @@ import {
   X,
   Upload,
   Download,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { OfficialReportItem } from '../../types';
@@ -21,6 +23,8 @@ export const AdminReportsSection: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingReport, setEditingReport] = useState<OfficialReportItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -45,6 +49,7 @@ export const AdminReportsSection: React.FC = () => {
     setDescription('');
     setDownloadUrl('');
     setPublished(true);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -58,10 +63,11 @@ export const AdminReportsSection: React.FC = () => {
     setFileSize(rep.fileSize || '1.8 MB');
     setDownloadUrl(rep.downloadUrl || '');
     setPublished(rep.published);
+    setModalError(null);
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
@@ -82,21 +88,42 @@ export const AdminReportsSection: React.FC = () => {
       }),
     };
 
-    if (editingReport) {
-      updateReport(payload);
-      showToast('Laporan berhasil diperbarui!');
-    } else {
-      addReport(payload);
-      showToast('Laporan baru berhasil ditambahkan!');
-    }
+    setIsSaving(true);
+    setModalError(null);
 
-    setIsModalOpen(false);
+    try {
+      if (editingReport) {
+        const res = await updateReport(payload);
+        if (res.success) {
+          showToast('Laporan berhasil diperbarui di database!');
+          setIsModalOpen(false);
+        } else {
+          setModalError(`Gagal memperbarui laporan: ${res.error?.message || 'Terjadi kesalahan'}`);
+        }
+      } else {
+        const res = await addReport(payload);
+        if (res.success) {
+          showToast('Laporan baru berhasil ditambahkan ke database!');
+          setIsModalOpen(false);
+        } else {
+          setModalError(`Gagal menambahkan laporan: ${res.error?.message || 'Terjadi kesalahan'}`);
+        }
+      }
+    } catch (err: any) {
+      setModalError(`Terjadi kesalahan sistem: ${err?.message || 'Gagal menyimpan'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = (id: string, repTitle: string) => {
+  const handleDelete = async (id: string, repTitle: string) => {
     if (confirm(`Hapus dokumen laporan "${repTitle}"?`)) {
-      deleteReport(id);
-      showToast('Laporan berhasil dihapus.');
+      const res = await deleteReport(id);
+      if (res.success) {
+        showToast('Laporan berhasil dihapus dari database.');
+      } else {
+        alert(`Gagal menghapus laporan: ${res.error?.message || 'Terjadi kesalahan'}`);
+      }
     }
   };
 
@@ -231,6 +258,13 @@ export const AdminReportsSection: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 space-y-3.5 text-xs">
+              {modalError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{modalError}</span>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="font-bold text-[#071F20] block">Judul Laporan *</label>
                 <input
@@ -333,16 +367,19 @@ export const AdminReportsSection: React.FC = () => {
               <div className="pt-3 border-t flex justify-end gap-2">
                 <button
                   type="button"
+                  disabled={isSaving}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold"
+                  className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold disabled:opacity-50 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-xs"
+                  disabled={isSaving}
+                  className="px-4 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                 >
-                  {editingReport ? 'Perbarui Laporan' : 'Simpan Laporan'}
+                  {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {isSaving ? 'Menyimpan ke Supabase...' : editingReport ? 'Perbarui Laporan' : 'Simpan Laporan'}
                 </button>
               </div>
             </form>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, Plus, Edit3, Trash2, CheckCircle2, ShieldCheck, Copy, Check, X } from 'lucide-react';
+import { CreditCard, Plus, Edit3, Trash2, CheckCircle2, ShieldCheck, Copy, Check, X, AlertCircle, Loader2 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { BankAccountItem } from '../../types';
 
@@ -11,6 +11,8 @@ export const AdminBankAccountsSection: React.FC = () => {
   const [editingAccount, setEditingAccount] = useState<BankAccountItem | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Form state
   const [bankName, setBankName] = useState('BSI');
@@ -39,6 +41,7 @@ export const AdminBankAccountsSection: React.FC = () => {
     setAccountHolder('LKS IRSYADUL AMAL');
     setCategory('DONASI UMUM');
     setDescription('Penyaluran donasi dan sedekah.');
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -49,10 +52,11 @@ export const AdminBankAccountsSection: React.FC = () => {
     setAccountHolder(acc.accountHolder);
     setCategory(acc.category as any);
     setDescription(acc.description || '');
+    setModalError(null);
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountNumber.trim()) return;
 
@@ -73,21 +77,51 @@ export const AdminBankAccountsSection: React.FC = () => {
       isActive: editingAccount ? editingAccount.isActive !== false : true,
     };
 
-    if (editingAccount) {
-      updateBankAccount(payload);
-      showToast('Rekening berhasil diperbarui!');
-    } else {
-      addBankAccount(payload);
-      showToast('Rekening baru berhasil ditambahkan!');
-    }
+    setIsSaving(true);
+    setModalError(null);
 
-    setIsModalOpen(false);
+    try {
+      if (editingAccount) {
+        const res = await updateBankAccount(payload);
+        if (res.success) {
+          showToast('Rekening berhasil diperbarui di database!');
+          setIsModalOpen(false);
+        } else {
+          setModalError(`Gagal memperbarui rekening: ${res.error?.message || 'Terjadi kesalahan'}`);
+        }
+      } else {
+        const res = await addBankAccount(payload);
+        if (res.success) {
+          showToast('Rekening baru berhasil disimpan ke database!');
+          setIsModalOpen(false);
+        } else {
+          setModalError(`Gagal menambahkan rekening: ${res.error?.message || 'Terjadi kesalahan'}`);
+        }
+      }
+    } catch (err: any) {
+      setModalError(`Terjadi kesalahan sistem: ${err?.message || 'Gagal menyimpan'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = (id: string, name: string, num: string) => {
+  const handleDelete = async (id: string, name: string, num: string) => {
     if (confirm(`Hapus rekening ${name} ${num}? Rekening ini tidak akan tampil lagi di web publik.`)) {
-      deleteBankAccount(id);
-      showToast('Rekening dihapus.');
+      const res = await deleteBankAccount(id);
+      if (res.success) {
+        showToast('Rekening berhasil dihapus dari database.');
+      } else {
+        alert(`Gagal menghapus rekening: ${res.error?.message || 'Terjadi kesalahan'}`);
+      }
+    }
+  };
+
+  const handleToggleActive = async (id: string) => {
+    const res = await toggleBankAccountActive(id);
+    if (res.success) {
+      showToast('Status aktif rekening diperbarui.');
+    } else {
+      alert(`Gagal mengubah status rekening: ${res.error?.message || 'Terjadi kesalahan'}`);
     }
   };
 
@@ -220,7 +254,7 @@ export const AdminBankAccountsSection: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={() => toggleBankAccountActive(acc.id)}
+                        onClick={() => handleToggleActive(acc.id)}
                         className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors ${
                           isActive
                             ? 'border-gray-200 text-gray-600 hover:bg-gray-100'
@@ -264,6 +298,13 @@ export const AdminBankAccountsSection: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 space-y-3.5 text-xs">
+              {modalError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{modalError}</span>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="font-bold text-[#071F20] block">Kategori Donasi</label>
                 <select
@@ -329,16 +370,19 @@ export const AdminBankAccountsSection: React.FC = () => {
               <div className="pt-3 border-t flex justify-end gap-2">
                 <button
                   type="button"
+                  disabled={isSaving}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold"
+                  className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold disabled:opacity-50 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-xs"
+                  disabled={isSaving}
+                  className="px-4 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                 >
-                  {editingAccount ? 'Perbarui Rekening' : 'Simpan Rekening'}
+                  {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {isSaving ? 'Menyimpan ke Supabase...' : editingAccount ? 'Perbarui Rekening' : 'Simpan Rekening'}
                 </button>
               </div>
             </form>

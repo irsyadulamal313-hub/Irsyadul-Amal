@@ -88,53 +88,54 @@ interface CMSContextType {
   isSupabaseConnected: boolean;
   isSupabaseLoading: boolean;
   syncAllToSupabase: () => Promise<{ success: boolean; message: string }>;
+  refetchAllCMSData: () => Promise<void>;
 
   // Actions
   loginAdmin: (emailOrUser: string, pass: string) => { success: boolean; message?: string };
   logoutAdmin: () => void;
-  updateSiteSettings: (settings: Partial<SiteSettings>) => void;
-  updateHomepageContent: (content: Partial<HomepageContent>, publishImmediately?: boolean) => void;
+  updateSiteSettings: (settings: Partial<SiteSettings>) => Promise<{ success: boolean; error?: any }>;
+  updateHomepageContent: (content: Partial<HomepageContent>, publishImmediately?: boolean) => Promise<{ success: boolean; error?: any }>;
   saveHomepageDraft: (content: HomepageContent) => void;
-  publishHomepageDraft: () => void;
+  publishHomepageDraft: () => Promise<{ success: boolean; error?: any }>;
   discardHomepageDraft: () => void;
   
   // Programs
-  addProgram: (program: ProgramItem) => void;
-  updateProgram: (program: ProgramItem) => void;
-  deleteProgram: (id: string) => void;
-  duplicateProgram: (id: string) => void;
+  addProgram: (program: ProgramItem) => Promise<{ success: boolean; data?: ProgramItem; error?: any }>;
+  updateProgram: (program: ProgramItem) => Promise<{ success: boolean; data?: ProgramItem; error?: any }>;
+  deleteProgram: (id: string) => Promise<{ success: boolean; error?: any }>;
+  duplicateProgram: (id: string) => Promise<{ success: boolean; data?: ProgramItem; error?: any }>;
   
   // Categories
   addCategory: (category: string) => void;
   deleteCategory: (category: string) => void;
   
   // Bank accounts
-  addBankAccount: (acc: BankAccountItem) => void;
-  updateBankAccount: (acc: BankAccountItem) => void;
-  deleteBankAccount: (id: string) => void;
-  toggleBankAccountActive: (id: string) => void;
+  addBankAccount: (acc: BankAccountItem) => Promise<{ success: boolean; data?: BankAccountItem; error?: any }>;
+  updateBankAccount: (acc: BankAccountItem) => Promise<{ success: boolean; data?: BankAccountItem; error?: any }>;
+  deleteBankAccount: (id: string) => Promise<{ success: boolean; error?: any }>;
+  toggleBankAccountActive: (id: string) => Promise<{ success: boolean; error?: any }>;
   
   // Reports
-  addReport: (report: OfficialReportItem) => void;
-  updateReport: (report: OfficialReportItem) => void;
-  deleteReport: (id: string) => void;
+  addReport: (report: OfficialReportItem) => Promise<{ success: boolean; data?: OfficialReportItem; error?: any }>;
+  updateReport: (report: OfficialReportItem) => Promise<{ success: boolean; data?: OfficialReportItem; error?: any }>;
+  deleteReport: (id: string) => Promise<{ success: boolean; error?: any }>;
   
   // Videos
-  addVideo: (video: VideoItem) => void;
-  updateVideo: (video: VideoItem) => void;
-  deleteVideo: (id: string) => void;
-  toggleVideoActive: (id: string) => void;
-  reorderVideos: (videos: VideoItem[]) => void;
+  addVideo: (video: VideoItem) => Promise<{ success: boolean; data?: VideoItem; error?: any }>;
+  updateVideo: (video: VideoItem) => Promise<{ success: boolean; data?: VideoItem; error?: any }>;
+  deleteVideo: (id: string) => Promise<{ success: boolean; error?: any }>;
+  toggleVideoActive: (id: string) => Promise<{ success: boolean; error?: any }>;
+  reorderVideos: (videos: VideoItem[]) => Promise<{ success: boolean; error?: any }>;
 
   // Background Music
-  updateMusicSettings: (settings: Partial<MusicSettings>) => void;
+  updateMusicSettings: (settings: Partial<MusicSettings>) => Promise<{ success: boolean; error?: any }>;
 
   // Documentations
-  addDocumentation: (doc: DocumentationItem) => void;
-  updateDocumentation: (doc: DocumentationItem) => void;
-  deleteDocumentation: (id: string) => void;
-  toggleDocumentationActive: (id: string) => void;
-  reorderDocumentations: (docs: DocumentationItem[]) => void;
+  addDocumentation: (doc: DocumentationItem) => Promise<{ success: boolean; data?: DocumentationItem; error?: any }>;
+  updateDocumentation: (doc: DocumentationItem) => Promise<{ success: boolean; data?: DocumentationItem; error?: any }>;
+  deleteDocumentation: (id: string) => Promise<{ success: boolean; error?: any }>;
+  toggleDocumentationActive: (id: string) => Promise<{ success: boolean; error?: any }>;
+  reorderDocumentations: (docs: DocumentationItem[]) => Promise<{ success: boolean; error?: any }>;
   
   // Donations
   addDonation: (don: DonationTransaction) => void;
@@ -166,126 +167,22 @@ interface CMSContextType {
 const CMSContext = createContext<CMSContextType | undefined>(undefined);
 
 export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load saved state or default
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_settings`);
-      return saved ? JSON.parse(saved) : INITIAL_SITE_SETTINGS;
-    } catch {
-      return INITIAL_SITE_SETTINGS;
-    }
-  });
-
-  const [homepageContent, setHomepageContent] = useState<HomepageContent>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_homepage`);
-      return saved ? JSON.parse(saved) : INITIAL_HOMEPAGE_CONTENT;
-    } catch {
-      return INITIAL_HOMEPAGE_CONTENT;
-    }
-  });
-
+  // Initialize state directly with default schemas; Supabase will populate them on mount
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(INITIAL_SITE_SETTINGS);
+  const [homepageContent, setHomepageContent] = useState<HomepageContent>(INITIAL_HOMEPAGE_CONTENT);
   const [draftHomepageContent, setDraftHomepageContent] = useState<HomepageContent | null>(null);
   const [isDraftModeActive, setIsDraftModeActive] = useState(false);
-
-  const [programs, setPrograms] = useState<ProgramItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_programs`);
-      return saved ? JSON.parse(saved) : INITIAL_PROGRAMS_DATA;
-    } catch {
-      return INITIAL_PROGRAMS_DATA;
-    }
-  });
-
-  const [categories, setCategories] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_categories`);
-      return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
-    } catch {
-      return INITIAL_CATEGORIES;
-    }
-  });
-
-  const [bankAccounts, setBankAccounts] = useState<BankAccountItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_banks`);
-      return saved ? JSON.parse(saved) : INITIAL_BANK_ACCOUNTS_DATA;
-    } catch {
-      return INITIAL_BANK_ACCOUNTS_DATA;
-    }
-  });
-
-  const [reports, setReports] = useState<OfficialReportItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_reports`);
-      return saved ? JSON.parse(saved) : INITIAL_REPORTS_DATA;
-    } catch {
-      return INITIAL_REPORTS_DATA;
-    }
-  });
-
-  const [documentations, setDocumentations] = useState<DocumentationItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_documentations`);
-      return saved ? JSON.parse(saved) : INITIAL_DOCUMENTATION_DATA;
-    } catch {
-      return INITIAL_DOCUMENTATION_DATA;
-    }
-  });
-
-  const [videos, setVideos] = useState<VideoItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_videos`);
-      return saved ? JSON.parse(saved) : INITIAL_VIDEOS_DATA;
-    } catch {
-      return INITIAL_VIDEOS_DATA;
-    }
-  });
-
-  const [musicSettings, setMusicSettings] = useState<MusicSettings>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_music`);
-      return saved ? JSON.parse(saved) : INITIAL_MUSIC_SETTINGS;
-    } catch {
-      return INITIAL_MUSIC_SETTINGS;
-    }
-  });
-
-  const [donations, setDonations] = useState<DonationTransaction[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_donations`);
-      return saved ? JSON.parse(saved) : INITIAL_DONATIONS_DATA;
-    } catch {
-      return INITIAL_DONATIONS_DATA;
-    }
-  });
-
-  const [donors, setDonors] = useState<DonorProfile[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_donors`);
-      return saved ? JSON.parse(saved) : INITIAL_DONORS_DATA;
-    } catch {
-      return INITIAL_DONORS_DATA;
-    }
-  });
-
-  const [testimonials, setTestimonials] = useState<TestimonialItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_testimonials`);
-      return saved ? JSON.parse(saved) : INITIAL_TESTIMONIALS_DATA;
-    } catch {
-      return INITIAL_TESTIMONIALS_DATA;
-    }
-  });
-
-  const [media, setMedia] = useState<MediaItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_media`);
-      return saved ? JSON.parse(saved) : INITIAL_MEDIA_DATA;
-    } catch {
-      return INITIAL_MEDIA_DATA;
-    }
-  });
+  const [programs, setPrograms] = useState<ProgramItem[]>(INITIAL_PROGRAMS_DATA);
+  const [categories, setCategories] = useState<string[]>(INITIAL_CATEGORIES);
+  const [bankAccounts, setBankAccounts] = useState<BankAccountItem[]>(INITIAL_BANK_ACCOUNTS_DATA);
+  const [reports, setReports] = useState<OfficialReportItem[]>(INITIAL_REPORTS_DATA);
+  const [documentations, setDocumentations] = useState<DocumentationItem[]>(INITIAL_DOCUMENTATION_DATA);
+  const [videos, setVideos] = useState<VideoItem[]>(INITIAL_VIDEOS_DATA);
+  const [musicSettings, setMusicSettings] = useState<MusicSettings>(INITIAL_MUSIC_SETTINGS);
+  const [donations, setDonations] = useState<DonationTransaction[]>(INITIAL_DONATIONS_DATA);
+  const [donors, setDonors] = useState<DonorProfile[]>(INITIAL_DONORS_DATA);
+  const [testimonials, setTestimonials] = useState<TestimonialItem[]>(INITIAL_TESTIMONIALS_DATA);
+  const [media, setMedia] = useState<MediaItem[]>(INITIAL_MEDIA_DATA);
 
   // Auth State (Directly synchronized with Supabase Auth session)
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
@@ -350,178 +247,63 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isSupabaseLoading, setIsSupabaseLoading] = useState(false);
   const isSupabaseConnected = isSupabaseConfigured();
 
-  useEffect(() => {
-    let isMounted = true;
+  const refetchAllCMSData = async () => {
+    if (!isSupabaseConfigured()) return;
+    setIsSupabaseLoading(true);
 
-    const loadSupabaseData = async () => {
-      if (!isSupabaseConfigured()) return;
-      setIsSupabaseLoading(true);
+    try {
+      const [settingsRes, homepageRes, programsRes, banksRes, reportsRes, videosRes, docsRes, musicRes] = await Promise.all([
+        fetchSiteSettingsFromSupabase(),
+        fetchHomepageContentFromSupabase(),
+        fetchProgramsFromSupabase(),
+        fetchBankAccountsFromSupabase(),
+        fetchReportsFromSupabase(),
+        fetchVideosFromSupabase(),
+        fetchDocumentationsFromSupabase(),
+        fetchMusicSettingsFromSupabase(),
+      ]);
 
-      try {
-        const [settingsRes, homepageRes, programsRes, banksRes, reportsRes, videosRes, docsRes, musicRes] = await Promise.all([
-          fetchSiteSettingsFromSupabase(),
-          fetchHomepageContentFromSupabase(),
-          fetchProgramsFromSupabase(),
-          fetchBankAccountsFromSupabase(),
-          fetchReportsFromSupabase(),
-          fetchVideosFromSupabase(),
-          fetchDocumentationsFromSupabase(),
-          fetchMusicSettingsFromSupabase(),
-        ]);
-
-        if (!isMounted) return;
-
-        if (settingsRes.data && Object.keys(settingsRes.data).length > 0) {
-          setSiteSettings((prev) => ({ ...prev, ...settingsRes.data }));
-        }
-
-        if (homepageRes.data && Object.keys(homepageRes.data).length > 0) {
-          setHomepageContent((prev) => ({ ...prev, ...homepageRes.data }));
-        }
-
-        if (programsRes.data && programsRes.data.length > 0) {
-          setPrograms(programsRes.data);
-        }
-
-        if (banksRes.data && banksRes.data.length > 0) {
-          setBankAccounts(banksRes.data);
-        }
-
-        if (reportsRes.data && reportsRes.data.length > 0) {
-          setReports(reportsRes.data);
-        }
-
-        if (videosRes.data && videosRes.data.length > 0) {
-          setVideos(videosRes.data);
-        }
-
-        if (docsRes.data && docsRes.data.length > 0) {
-          setDocumentations(docsRes.data);
-        }
-
-        if (musicRes.data) {
-          setMusicSettings((prev) => ({ ...prev, ...musicRes.data }));
-        }
-      } catch (err) {
-        console.warn('[CMS] Error loading data from Supabase:', err);
-      } finally {
-        if (isMounted) {
-          setIsSupabaseLoading(false);
-        }
+      if (settingsRes.data && Object.keys(settingsRes.data).length > 0) {
+        setSiteSettings((prev) => ({ ...prev, ...settingsRes.data }));
       }
-    };
 
-    loadSupabaseData();
+      if (homepageRes.data && Object.keys(homepageRes.data).length > 0) {
+        setHomepageContent((prev) => ({ ...prev, ...homepageRes.data }));
+      }
 
-    return () => {
-      isMounted = false;
-    };
+      if (Array.isArray(programsRes.data)) {
+        setPrograms(programsRes.data);
+      }
+
+      if (Array.isArray(banksRes.data)) {
+        setBankAccounts(banksRes.data);
+      }
+
+      if (Array.isArray(reportsRes.data)) {
+        setReports(reportsRes.data);
+      }
+
+      if (Array.isArray(videosRes.data)) {
+        setVideos(videosRes.data);
+      }
+
+      if (Array.isArray(docsRes.data)) {
+        setDocumentations(docsRes.data);
+      }
+
+      if (musicRes.data) {
+        setMusicSettings((prev) => ({ ...prev, ...musicRes.data }));
+      }
+    } catch (err) {
+      console.warn('[CMS] Error loading data from Supabase:', err);
+    } finally {
+      setIsSupabaseLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refetchAllCMSData();
   }, []);
-
-  // Save to localStorage when state changes
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_settings`, JSON.stringify(siteSettings));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [siteSettings]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_homepage`, JSON.stringify(homepageContent));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [homepageContent]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_programs`, JSON.stringify(programs));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [programs]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_categories`, JSON.stringify(categories));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [categories]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_banks`, JSON.stringify(bankAccounts));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [bankAccounts]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_reports`, JSON.stringify(reports));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [reports]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_documentations`, JSON.stringify(documentations));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [documentations]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_videos`, JSON.stringify(videos));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [videos]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_music`, JSON.stringify(musicSettings));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [musicSettings]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_donations`, JSON.stringify(donations));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [donations]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_donors`, JSON.stringify(donors));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [donors]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_testimonials`, JSON.stringify(testimonials));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [testimonials]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${LOCAL_STORAGE_KEY}_media`, JSON.stringify(media));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [media]);
 
   // Derived bank category groups
   const bankGroups: BankCategoryGroup[] = useMemo(() => {
@@ -579,32 +361,44 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Setting actions
-  const updateSiteSettings = (settings: Partial<SiteSettings>) => {
-    setSiteSettings((prev) => {
-      const updated = { ...prev, ...settings };
-      // Update whatsappUrl if whatsapp changed
-      if (settings.whatsapp) {
-        const cleanWa = settings.whatsapp.replace(/\D/g, '');
-        const normalized = cleanWa.startsWith('0') ? '62' + cleanWa.slice(1) : cleanWa;
-        updated.whatsappUrl = `https://wa.me/${normalized}`;
+  const updateSiteSettings = async (settings: Partial<SiteSettings>): Promise<{ success: boolean; error?: any }> => {
+    const updated = { ...siteSettings, ...settings };
+    // Update whatsappUrl if whatsapp changed
+    if (settings.whatsapp) {
+      const cleanWa = settings.whatsapp.replace(/\D/g, '');
+      const normalized = cleanWa.startsWith('0') ? '62' + cleanWa.slice(1) : cleanWa;
+      updated.whatsappUrl = `https://wa.me/${normalized}`;
+    }
+    if (isSupabaseConfigured()) {
+      const res = await saveSiteSettingsToSupabase(updated);
+      if (!res.success) {
+        return { success: false, error: res.error };
       }
-      saveSiteSettingsToSupabase(updated);
-      return updated;
-    });
+    }
+    setSiteSettings(updated);
+    return { success: true };
   };
 
-  const updateHomepageContent = (content: Partial<HomepageContent>, publishImmediately = true) => {
+  const updateHomepageContent = async (
+    content: Partial<HomepageContent>,
+    publishImmediately = true
+  ): Promise<{ success: boolean; error?: any }> => {
     if (publishImmediately) {
-      setHomepageContent((prev) => {
-        const updated = { ...prev, ...content };
-        saveHomepageContentToSupabase(updated);
-        return updated;
-      });
+      const updated = { ...homepageContent, ...content };
+      if (isSupabaseConfigured()) {
+        const res = await saveHomepageContentToSupabase(updated);
+        if (!res.success) {
+          return { success: false, error: res.error };
+        }
+      }
+      setHomepageContent(updated);
       setDraftHomepageContent(null);
       setIsDraftModeActive(false);
+      return { success: true };
     } else {
       setDraftHomepageContent((prev) => ({ ...(prev || homepageContent), ...content }));
       setIsDraftModeActive(true);
+      return { success: true };
     }
   };
 
@@ -613,13 +407,20 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsDraftModeActive(true);
   };
 
-  const publishHomepageDraft = () => {
+  const publishHomepageDraft = async (): Promise<{ success: boolean; error?: any }> => {
     if (draftHomepageContent) {
+      if (isSupabaseConfigured()) {
+        const res = await saveHomepageContentToSupabase(draftHomepageContent);
+        if (!res.success) {
+          return { success: false, error: res.error };
+        }
+      }
       setHomepageContent(draftHomepageContent);
-      saveHomepageContentToSupabase(draftHomepageContent);
       setDraftHomepageContent(null);
       setIsDraftModeActive(false);
+      return { success: true };
     }
+    return { success: true };
   };
 
   const discardHomepageDraft = () => {
@@ -628,24 +429,50 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Program actions
-  const addProgram = (program: ProgramItem) => {
-    setPrograms((prev) => [program, ...prev]);
-    upsertProgramToSupabase(program);
+  const addProgram = async (program: ProgramItem): Promise<{ success: boolean; data?: ProgramItem; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await upsertProgramToSupabase(program);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+      const saved = res.data || program;
+      setPrograms((prev) => [saved, ...prev.filter((p) => p.id !== program.id && p.id !== saved.id)]);
+      return { success: true, data: saved };
+    } else {
+      setPrograms((prev) => [program, ...prev]);
+      return { success: true, data: program };
+    }
   };
 
-  const updateProgram = (program: ProgramItem) => {
-    setPrograms((prev) => prev.map((p) => (p.id === program.id ? program : p)));
-    upsertProgramToSupabase(program);
+  const updateProgram = async (program: ProgramItem): Promise<{ success: boolean; data?: ProgramItem; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await upsertProgramToSupabase(program);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+      const saved = res.data || program;
+      setPrograms((prev) => prev.map((p) => (p.id === program.id || p.slug === program.slug ? saved : p)));
+      return { success: true, data: saved };
+    } else {
+      setPrograms((prev) => prev.map((p) => (p.id === program.id ? program : p)));
+      return { success: true, data: program };
+    }
   };
 
-  const deleteProgram = (id: string) => {
-    setPrograms((prev) => prev.filter((p) => p.id !== id));
-    deleteProgramFromSupabase(id);
+  const deleteProgram = async (id: string): Promise<{ success: boolean; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await deleteProgramFromSupabase(id);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+    }
+    setPrograms((prev) => prev.filter((p) => p.id !== id && p.slug !== id));
+    return { success: true };
   };
 
-  const duplicateProgram = (id: string) => {
+  const duplicateProgram = async (id: string): Promise<{ success: boolean; data?: ProgramItem; error?: any }> => {
     const target = programs.find((p) => p.id === id);
-    if (!target) return;
+    if (!target) return { success: false, error: 'Program tidak ditemukan' };
     const duplicated: ProgramItem = {
       ...target,
       id: `prog-${Date.now()}`,
@@ -654,8 +481,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'DRAFT',
       isDraft: true,
     };
-    setPrograms((prev) => [duplicated, ...prev]);
-    upsertProgramToSupabase(duplicated);
+    return addProgram(duplicated);
   };
 
   // Category actions
@@ -671,131 +497,230 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Bank account actions
-  const addBankAccount = (acc: BankAccountItem) => {
-    setBankAccounts((prev) => [...prev, acc]);
-    upsertBankAccountToSupabase(acc);
+  const addBankAccount = async (acc: BankAccountItem): Promise<{ success: boolean; data?: BankAccountItem; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await upsertBankAccountToSupabase(acc);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+      const saved = res.data || acc;
+      setBankAccounts((prev) => [...prev.filter((b) => b.id !== acc.id && b.id !== saved.id), saved]);
+      return { success: true, data: saved };
+    } else {
+      setBankAccounts((prev) => [...prev, acc]);
+      return { success: true, data: acc };
+    }
   };
 
-  const updateBankAccount = (acc: BankAccountItem) => {
-    setBankAccounts((prev) => prev.map((b) => (b.id === acc.id ? acc : b)));
-    upsertBankAccountToSupabase(acc);
+  const updateBankAccount = async (acc: BankAccountItem): Promise<{ success: boolean; data?: BankAccountItem; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await upsertBankAccountToSupabase(acc);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+      const saved = res.data || acc;
+      setBankAccounts((prev) => prev.map((b) => (b.id === acc.id || b.accountNumber === acc.accountNumber ? saved : b)));
+      return { success: true, data: saved };
+    } else {
+      setBankAccounts((prev) => prev.map((b) => (b.id === acc.id ? acc : b)));
+      return { success: true, data: acc };
+    }
   };
 
-  const deleteBankAccount = (id: string) => {
-    setBankAccounts((prev) => prev.filter((b) => b.id !== id));
-    deleteBankAccountFromSupabase(id);
+  const deleteBankAccount = async (id: string): Promise<{ success: boolean; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await deleteBankAccountFromSupabase(id);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+    }
+    setBankAccounts((prev) => prev.filter((b) => b.id !== id && b.accountNumber !== id));
+    return { success: true };
   };
 
-  const toggleBankAccountActive = (id: string) => {
-    setBankAccounts((prev) =>
-      prev.map((b) => {
-        if (b.id === id) {
-          const toggled = { ...b, isActive: b.isActive === false ? true : false };
-          upsertBankAccountToSupabase(toggled);
-          return toggled;
-        }
-        return b;
-      })
-    );
+  const toggleBankAccountActive = async (id: string): Promise<{ success: boolean; error?: any }> => {
+    const target = bankAccounts.find((b) => b.id === id);
+    if (!target) return { success: false, error: 'Rekening tidak ditemukan' };
+    const toggled = { ...target, isActive: target.isActive === false ? true : false };
+    return updateBankAccount(toggled);
   };
 
   // Report actions
-  const addReport = (report: OfficialReportItem) => {
-    setReports((prev) => [report, ...prev]);
-    upsertReportToSupabase(report);
+  const addReport = async (report: OfficialReportItem): Promise<{ success: boolean; data?: OfficialReportItem; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await upsertReportToSupabase(report);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+      const saved = res.data || report;
+      setReports((prev) => [saved, ...prev.filter((r) => r.id !== report.id && r.id !== saved.id)]);
+      return { success: true, data: saved };
+    } else {
+      setReports((prev) => [report, ...prev]);
+      return { success: true, data: report };
+    }
   };
 
-  const updateReport = (report: OfficialReportItem) => {
-    setReports((prev) => prev.map((r) => (r.id === report.id ? report : r)));
-    upsertReportToSupabase(report);
+  const updateReport = async (report: OfficialReportItem): Promise<{ success: boolean; data?: OfficialReportItem; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await upsertReportToSupabase(report);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+      const saved = res.data || report;
+      setReports((prev) => prev.map((r) => (r.id === report.id ? saved : r)));
+      return { success: true, data: saved };
+    } else {
+      setReports((prev) => prev.map((r) => (r.id === report.id ? report : r)));
+      return { success: true, data: report };
+    }
   };
 
-  const deleteReport = (id: string) => {
+  const deleteReport = async (id: string): Promise<{ success: boolean; error?: any }> => {
+    const target = reports.find((r) => r.id === id);
+    if (isSupabaseConfigured()) {
+      const res = await deleteReportFromSupabase(id, target?.title);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+    }
     setReports((prev) => prev.filter((r) => r.id !== id));
-    deleteReportFromSupabase(id);
+    return { success: true };
   };
 
   // Documentation actions
-  const addDocumentation = (doc: DocumentationItem) => {
-    setDocumentations((prev) => [doc, ...prev]);
-    upsertDocumentationToSupabase(doc);
+  const addDocumentation = async (doc: DocumentationItem): Promise<{ success: boolean; data?: DocumentationItem; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await upsertDocumentationToSupabase(doc);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+      const saved = res.data || doc;
+      setDocumentations((prev) => [saved, ...prev.filter((d) => d.id !== doc.id && d.id !== saved.id)]);
+      return { success: true, data: saved };
+    } else {
+      setDocumentations((prev) => [doc, ...prev]);
+      return { success: true, data: doc };
+    }
   };
 
-  const updateDocumentation = (doc: DocumentationItem) => {
-    setDocumentations((prev) => prev.map((d) => (d.id === doc.id ? doc : d)));
-    upsertDocumentationToSupabase(doc);
+  const updateDocumentation = async (doc: DocumentationItem): Promise<{ success: boolean; data?: DocumentationItem; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await upsertDocumentationToSupabase(doc);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+      const saved = res.data || doc;
+      setDocumentations((prev) => prev.map((d) => (d.id === doc.id ? saved : d)));
+      return { success: true, data: saved };
+    } else {
+      setDocumentations((prev) => prev.map((d) => (d.id === doc.id ? doc : d)));
+      return { success: true, data: doc };
+    }
   };
 
-  const deleteDocumentation = (id: string) => {
+  const deleteDocumentation = async (id: string): Promise<{ success: boolean; error?: any }> => {
+    const target = documentations.find((d) => d.id === id);
+    if (isSupabaseConfigured()) {
+      const res = await deleteDocumentationFromSupabase(id, target?.imageUrl);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+    }
     setDocumentations((prev) => prev.filter((d) => d.id !== id));
-    deleteDocumentationFromSupabase(id);
+    return { success: true };
   };
 
-  const toggleDocumentationActive = (id: string) => {
-    setDocumentations((prev) =>
-      prev.map((d) => {
-        if (d.id === id) {
-          const toggled = { ...d, is_active: d.is_active === false ? true : false };
-          upsertDocumentationToSupabase(toggled);
-          return toggled;
-        }
-        return d;
-      })
-    );
+  const toggleDocumentationActive = async (id: string): Promise<{ success: boolean; error?: any }> => {
+    const target = documentations.find((d) => d.id === id);
+    if (!target) return { success: false, error: 'Dokumentasi tidak ditemukan' };
+    const toggled = { ...target, is_active: target.is_active === false ? true : false };
+    return updateDocumentation(toggled);
   };
 
-  const reorderDocumentations = (newDocs: DocumentationItem[]) => {
+  const reorderDocumentations = async (newDocs: DocumentationItem[]): Promise<{ success: boolean; error?: any }> => {
     const updated = newDocs.map((doc, idx) => ({ ...doc, sort_order: idx + 1 }));
     setDocumentations(updated);
-    for (const doc of updated) {
-      upsertDocumentationToSupabase(doc);
+    if (isSupabaseConfigured()) {
+      for (const doc of updated) {
+        await upsertDocumentationToSupabase(doc);
+      }
     }
+    return { success: true };
   };
 
   // Video actions
-  const addVideo = (video: VideoItem) => {
-    setVideos((prev) => [video, ...prev]);
-    upsertVideoToSupabase(video);
-  };
-
-  const updateVideo = (video: VideoItem) => {
-    setVideos((prev) => prev.map((v) => (v.id === video.id ? video : v)));
-    upsertVideoToSupabase(video);
-  };
-
-  const deleteVideo = (id: string) => {
-    setVideos((prev) => prev.filter((v) => v.id !== id));
-    deleteVideoFromSupabase(id);
-  };
-
-  const toggleVideoActive = (id: string) => {
-    setVideos((prev) =>
-      prev.map((v) => {
-        if (v.id === id) {
-          const toggled = { ...v, is_active: !v.is_active };
-          upsertVideoToSupabase(toggled);
-          return toggled;
-        }
-        return v;
-      })
-    );
-  };
-
-  const reorderVideos = (newVideos: VideoItem[]) => {
-    const updated = newVideos.map((video, idx) => ({ ...video, sort_order: idx + 1 }));
-    setVideos(updated);
-    for (const vid of updated) {
-      upsertVideoToSupabase(vid);
+  const addVideo = async (video: VideoItem): Promise<{ success: boolean; data?: VideoItem; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await upsertVideoToSupabase(video);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+      const saved = res.data || video;
+      setVideos((prev) => [saved, ...prev.filter((v) => v.id !== video.id && v.id !== saved.id)]);
+      return { success: true, data: saved };
+    } else {
+      setVideos((prev) => [video, ...prev]);
+      return { success: true, data: video };
     }
   };
 
+  const updateVideo = async (video: VideoItem): Promise<{ success: boolean; data?: VideoItem; error?: any }> => {
+    if (isSupabaseConfigured()) {
+      const res = await upsertVideoToSupabase(video);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+      const saved = res.data || video;
+      setVideos((prev) => prev.map((v) => (v.id === video.id ? saved : v)));
+      return { success: true, data: saved };
+    } else {
+      setVideos((prev) => prev.map((v) => (v.id === video.id ? video : v)));
+      return { success: true, data: video };
+    }
+  };
+
+  const deleteVideo = async (id: string): Promise<{ success: boolean; error?: any }> => {
+    const target = videos.find((v) => v.id === id);
+    if (isSupabaseConfigured()) {
+      const res = await deleteVideoFromSupabase(id, target?.youtube_url);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+    }
+    setVideos((prev) => prev.filter((v) => v.id !== id));
+    return { success: true };
+  };
+
+  const toggleVideoActive = async (id: string): Promise<{ success: boolean; error?: any }> => {
+    const target = videos.find((v) => v.id === id);
+    if (!target) return { success: false, error: 'Video tidak ditemukan' };
+    const toggled = { ...target, is_active: !target.is_active };
+    return updateVideo(toggled);
+  };
+
+  const reorderVideos = async (newVideos: VideoItem[]): Promise<{ success: boolean; error?: any }> => {
+    const updated = newVideos.map((video, idx) => ({ ...video, sort_order: idx + 1 }));
+    setVideos(updated);
+    if (isSupabaseConfigured()) {
+      for (const vid of updated) {
+        await upsertVideoToSupabase(vid);
+      }
+    }
+    return { success: true };
+  };
+
   // Music settings actions
-  const updateMusicSettings = (settings: Partial<MusicSettings>) => {
-    setMusicSettings((prev) => {
-      const updated = { ...prev, ...settings, updated_at: new Date().toISOString() };
-      saveMusicSettingsToSupabase(updated);
-      return updated;
-    });
+  const updateMusicSettings = async (settings: Partial<MusicSettings>): Promise<{ success: boolean; error?: any }> => {
+    const updated = { ...musicSettings, ...settings, updated_at: new Date().toISOString() };
+    if (isSupabaseConfigured()) {
+      const res = await saveMusicSettingsToSupabase(updated);
+      if (!res.success) {
+        return { success: false, error: res.error };
+      }
+    }
+    setMusicSettings(updated);
+    return { success: true };
   };
 
   // Donation actions
@@ -945,6 +870,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isSupabaseConnected,
     isSupabaseLoading,
     syncAllToSupabase,
+    refetchAllCMSData,
 
     loginAdmin,
     logoutAdmin,

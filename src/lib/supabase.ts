@@ -143,7 +143,7 @@ export async function uploadMediaFile(
 
     // If Supabase is active, upload to bucket
     if (supabase && isSupabaseConfigured()) {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split('.').pop() || 'jpg';
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
       const filePath = `${folder}/${Date.now()}_${sanitizedName}.${fileExt}`;
 
@@ -155,14 +155,21 @@ export async function uploadMediaFile(
         });
 
       if (uploadError) {
-        console.warn('Supabase storage upload error:', uploadError);
-        // Fallback to local DataURL if storage policy or bucket isn't ready
-      } else if (data) {
+        console.error('[Supabase Storage Upload Failed]', uploadError);
+        return {
+          url: '',
+          error: `Gagal upload ke Supabase Storage (bucket "${bucket}"): ${uploadError.message}. Pastikan bucket "${bucket}" sudah dibuat dengan akses publik di Supabase Dashboard.`,
+          isStorageUploaded: false,
+        };
+      }
+
+      if (data) {
         const { data: publicUrlData } = supabase.storage
           .from(bucket)
           .getPublicUrl(filePath);
 
         if (publicUrlData?.publicUrl) {
+          console.log('[Supabase Storage Upload Success] Public URL:', publicUrlData.publicUrl);
           return {
             url: publicUrlData.publicUrl,
             error: null,
@@ -170,31 +177,25 @@ export async function uploadMediaFile(
           };
         }
       }
+
+      return {
+        url: '',
+        error: 'Gagal mendapatkan Public URL dari Supabase Storage setelah upload.',
+        isStorageUploaded: false,
+      };
     }
 
-    // Local / Offline fallback using FileReader
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        resolve({
-          url: reader.result as string,
-          error: null,
-          isStorageUploaded: false,
-        });
-      };
-      reader.onerror = () => {
-        resolve({
-          url: '',
-          error: 'Gagal memproses file pada peramban.',
-          isStorageUploaded: false,
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-  } catch (err: any) {
+    // Jika Supabase belum dikonfigurasi, beri tahu admin secara jujur (jangan fallback ke dataURL)
     return {
       url: '',
-      error: err?.message || 'Terjadi kesalahan saat mengunggah file.',
+      error: 'Supabase Storage belum terhubung. Konfigurasi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY terlebih dahulu untuk mengunggah file permanen.',
+      isStorageUploaded: false,
+    };
+  } catch (err: any) {
+    console.error('[Upload Exception]', err);
+    return {
+      url: '',
+      error: err?.message || 'Terjadi kesalahan sistem saat mengunggah file ke Supabase Storage.',
       isStorageUploaded: false,
     };
   }
@@ -393,7 +394,52 @@ CREATE TABLE IF NOT EXISTS public.contact_settings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 12. TABEL ADMIN USERS (admin_users)
+-- 12. TABEL VIDEO BERANDA (videos)
+CREATE TABLE IF NOT EXISTS public.videos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL DEFAULT 'Video Kegiatan',
+    description TEXT DEFAULT '',
+    youtube_url TEXT NOT NULL,
+    thumbnail_url TEXT DEFAULT '',
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 13. TABEL DOKUMENTASI KEGIATAN (documentations)
+CREATE TABLE IF NOT EXISTS public.documentations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL,
+    caption TEXT DEFAULT '',
+    program_name VARCHAR(255) DEFAULT '',
+    category VARCHAR(100) DEFAULT 'Dokumentasi',
+    activity_date VARCHAR(100) DEFAULT 'Dokumentasi Lapangan',
+    location VARCHAR(255) DEFAULT 'Garut, Jawa Barat',
+    image_url TEXT NOT NULL,
+    video_url TEXT,
+    story TEXT DEFAULT '',
+    target_beneficiary VARCHAR(255) DEFAULT '',
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 14. TABEL PENGATURAN MUSIK LATAR (music_settings)
+CREATE TABLE IF NOT EXISTS public.music_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    music_enabled BOOLEAN DEFAULT TRUE,
+    youtube_url TEXT NOT NULL DEFAULT 'https://www.youtube.com/watch?v=eLHYWmZEiHs&list=RDeLHYWmZEiHs&start_radio=1',
+    autoplay_enabled BOOLEAN DEFAULT TRUE,
+    loop_enabled BOOLEAN DEFAULT TRUE,
+    default_volume INTEGER DEFAULT 40,
+    title VARCHAR(255) DEFAULT 'Alunan Penyejuk Jiwa - IRSYADUL AMAL',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 15. TABEL ADMIN USERS (admin_users)
 CREATE TABLE IF NOT EXISTS public.admin_users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID UNIQUE NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -407,6 +453,27 @@ CREATE TABLE IF NOT EXISTS public.admin_users (
 
 CREATE INDEX IF NOT EXISTS idx_admin_users_user_id ON public.admin_users(user_id);
 CREATE INDEX IF NOT EXISTS idx_admin_users_email ON public.admin_users(email);
+
+-- ============================================================
+-- FUNGSI OTORISASI ADMIN (SECURITY DEFINER)
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.admin_users
+    WHERE user_id = auth.uid()
+      AND role IN ('admin', 'super_admin')
+      AND is_active = true
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated;
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
@@ -424,80 +491,62 @@ ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.testimonials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contact_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.documentations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.music_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
 
--- 1. ATURAN PUBLIK (READ-ONLY untuk data publik)
+-- 1. ATURAN PUBLIK (READ-ONLY: Hanya data yang dipublikasikan/aktif yang bisa dibaca publik)
 CREATE POLICY "Public Read Site Settings" ON public.site_settings FOR SELECT USING (true);
 CREATE POLICY "Public Read Homepage Content" ON public.homepage_content FOR SELECT USING (true);
-CREATE POLICY "Public Read Categories" ON public.program_categories FOR SELECT USING (is_active = true);
-CREATE POLICY "Public Read Published Programs" ON public.programs FOR SELECT USING (published = true AND status != 'Draft');
-CREATE POLICY "Public Read Bank Accounts" ON public.bank_accounts FOR SELECT USING (is_active = true);
-CREATE POLICY "Public Read Published Reports" ON public.reports FOR SELECT USING (published = true);
+CREATE POLICY "Public Read Categories" ON public.program_categories FOR SELECT USING (is_active = true OR public.is_admin());
+CREATE POLICY "Public Read Programs" ON public.programs FOR SELECT USING (published = true OR is_draft = false OR public.is_admin());
+CREATE POLICY "Public Read Bank Accounts" ON public.bank_accounts FOR SELECT USING (is_active = true OR public.is_admin());
+CREATE POLICY "Public Read Reports" ON public.reports FOR SELECT USING (published = true OR public.is_admin());
 CREATE POLICY "Public Read Media" ON public.media FOR SELECT USING (true);
-CREATE POLICY "Public Read Active Testimonials" ON public.testimonials FOR SELECT USING (is_active = true);
+CREATE POLICY "Public Read Testimonials" ON public.testimonials FOR SELECT USING (is_active = true OR public.is_admin());
 CREATE POLICY "Public Read Contact Settings" ON public.contact_settings FOR SELECT USING (true);
+CREATE POLICY "Public Read Videos" ON public.videos FOR SELECT USING (is_active = true OR public.is_admin());
+CREATE POLICY "Public Read Documentations" ON public.documentations FOR SELECT USING (is_active = true OR public.is_admin());
+CREATE POLICY "Public Read Music Settings" ON public.music_settings FOR SELECT USING (true);
+CREATE POLICY "Public Submit Donation" ON public.donations FOR INSERT WITH CHECK (true);
 
--- 2. ATURAN KEAMANAN TINGGI (Donatur & Transaksi Donasi TIDAK BISA dibaca oleh publik!)
--- Hanya admin terotentikasi yang dapat membaca atau mengelola data donasi & donatur
-CREATE POLICY "Admin Read Donations" ON public.donations FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admin Modify Donations" ON public.donations FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin Read Donors" ON public.donors FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admin Modify Donors" ON public.donors FOR ALL TO authenticated USING (true);
+-- 2. ATURAN ADMIN TEROTENTIKASI (Hanya user yang terdaftar di admin_users dengan is_active=true)
+CREATE POLICY "Admin Manage Site Settings" ON public.site_settings FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Homepage Content" ON public.homepage_content FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Categories" ON public.program_categories FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Programs" ON public.programs FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Bank Accounts" ON public.bank_accounts FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Reports" ON public.reports FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Media" ON public.media FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Testimonials" ON public.testimonials FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Contact Settings" ON public.contact_settings FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Videos" ON public.videos FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Documentations" ON public.documentations FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Music Settings" ON public.music_settings FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Donations" ON public.donations FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin Manage Donors" ON public.donors FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- 3. ATURAN KEAMANAN TABEL ADMIN_USERS (RLS KETAT - auth.uid() = user_id)
+-- 3. ATURAN KEAMANAN TABEL ADMIN_USERS
 CREATE POLICY "admin_users_select_policy" ON public.admin_users FOR SELECT TO authenticated USING (
-    auth.uid() = user_id
-    OR (email = (auth.jwt() ->> 'email') AND user_id IS NULL)
-    OR EXISTS (
-        SELECT 1 FROM public.admin_users
-        WHERE user_id = auth.uid()
-        AND role IN ('admin', 'super_admin')
-        AND is_active = true
-    )
+    auth.uid() = user_id OR public.is_admin()
 );
-
-CREATE POLICY "admin_users_insert_policy" ON public.admin_users FOR INSERT TO authenticated WITH CHECK (
-    auth.uid() = user_id
-    AND (
-        NOT EXISTS (SELECT 1 FROM public.admin_users)
-        OR EXISTS (
-            SELECT 1 FROM public.admin_users
-            WHERE user_id = auth.uid()
-            AND role IN ('admin', 'super_admin')
-            AND is_active = true
-        )
-    )
-);
-
 CREATE POLICY "admin_users_update_policy" ON public.admin_users FOR UPDATE TO authenticated USING (
-    auth.uid() = user_id
-    OR (email = (auth.jwt() ->> 'email') AND user_id IS NULL)
-) WITH CHECK (auth.uid() = user_id);
-
--- 4. ATURAN MODIFIKASI ADMIN CMS (Authenticated admin can INSERT, UPDATE, DELETE CMS tables)
-CREATE POLICY "Admin Modify Site Settings" ON public.site_settings FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin Modify Homepage Content" ON public.homepage_content FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin Modify Categories" ON public.program_categories FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin Modify Programs" ON public.programs FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin Modify Bank Accounts" ON public.bank_accounts FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin Modify Reports" ON public.reports FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin Modify Media" ON public.media FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin Modify Testimonials" ON public.testimonials FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin Modify Contact Settings" ON public.contact_settings FOR ALL TO authenticated USING (true);
+    auth.uid() = user_id OR public.is_admin()
+) WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
 -- ============================================================
 -- STORAGE BUCKETS SETUP
 -- ============================================================
--- Buat bucket penyimpanan (media, reports, logos)
 INSERT INTO storage.buckets (id, name, public) VALUES ('media', 'media', true) ON CONFLICT (id) DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('reports', 'reports', true) ON CONFLICT (id) DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('logos', 'logos', true) ON CONFLICT (id) DO NOTHING;
 
 -- Storage Policies: Public Read, Authenticated Admin Upload & Delete
 CREATE POLICY "Public Read Media Storage" ON storage.objects FOR SELECT USING (bucket_id IN ('media', 'reports', 'logos'));
-CREATE POLICY "Admin Upload Media Storage" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id IN ('media', 'reports', 'logos'));
-CREATE POLICY "Admin Update Media Storage" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id IN ('media', 'reports', 'logos'));
-CREATE POLICY "Admin Delete Media Storage" ON storage.objects FOR DELETE TO authenticated USING (bucket_id IN ('media', 'reports', 'logos'));
+CREATE POLICY "Admin Upload Media Storage" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id IN ('media', 'reports', 'logos') AND public.is_admin());
+CREATE POLICY "Admin Update Media Storage" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id IN ('media', 'reports', 'logos') AND public.is_admin());
+CREATE POLICY "Admin Delete Media Storage" ON storage.objects FOR DELETE TO authenticated USING (bucket_id IN ('media', 'reports', 'logos') AND public.is_admin());
 `;
 
 /**

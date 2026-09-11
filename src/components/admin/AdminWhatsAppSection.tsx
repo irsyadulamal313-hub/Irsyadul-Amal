@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MessageSquare, Save, CheckCircle2, Phone, Sparkles, ExternalLink, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MessageSquare, Save, CheckCircle2, Phone, Sparkles, ExternalLink, HelpCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 
 export const AdminWhatsAppSection: React.FC = () => {
@@ -7,15 +7,36 @@ export const AdminWhatsAppSection: React.FC = () => {
   const [whatsappNumber, setWhatsappNumber] = useState(siteSettings.whatsapp);
   const [template, setTemplate] = useState(siteSettings.waConfirmationTemplate);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    setWhatsappNumber(siteSettings.whatsapp || '');
+    setTemplate(siteSettings.waConfirmationTemplate || '');
+  }, [siteSettings.whatsapp, siteSettings.waConfirmationTemplate]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSiteSettings({
-      whatsapp: whatsappNumber.trim(),
-      waConfirmationTemplate: template,
-    });
-    setToastMessage('Pengaturan nomor dan pesan WhatsApp berhasil diperbarui!');
-    setTimeout(() => setToastMessage(null), 3000);
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const res = await updateSiteSettings({
+        whatsapp: whatsappNumber.trim(),
+        waConfirmationTemplate: template,
+      });
+
+      if (res.success) {
+        setToastMessage('Pengaturan nomor dan pesan WhatsApp berhasil diperbarui di database!');
+        setTimeout(() => setToastMessage(null), 3500);
+      } else {
+        setSaveError(`Gagal menyimpan pengaturan WhatsApp: ${res.error?.message || 'Terjadi kesalahan'}`);
+      }
+    } catch (err: any) {
+      setSaveError(`Terjadi kesalahan sistem: ${err?.message || 'Gagal menyimpan'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const samplePreview = template
@@ -49,6 +70,13 @@ export const AdminWhatsAppSection: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Form: 7 cols */}
         <form onSubmit={handleSave} className="lg:col-span-7 bg-white p-6 rounded-2xl border border-[#E0EAEA] shadow-2xs space-y-4">
+          {saveError && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{saveError}</span>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[#071F20] block">
               Nomor WhatsApp Resmi Lembaga *
@@ -100,10 +128,11 @@ export const AdminWhatsAppSection: React.FC = () => {
           <div className="pt-2 flex justify-end">
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-xs flex items-center gap-2 transition-colors"
+              disabled={isSaving}
+              className="px-5 py-2.5 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-xs flex items-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
             >
-              <Save className="w-4 h-4" />
-              Simpan Pengaturan WhatsApp
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {isSaving ? 'Menyimpan ke Supabase...' : 'Simpan Pengaturan WhatsApp'}
             </button>
           </div>
         </form>

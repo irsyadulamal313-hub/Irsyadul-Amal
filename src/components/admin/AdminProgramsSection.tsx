@@ -18,6 +18,7 @@ import {
   Heart,
   Users,
   Target,
+  Loader2,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { ProgramItem, ProgramStatus } from '../../types';
@@ -32,6 +33,8 @@ export const AdminProgramsSection: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProgram, setEditingProgram] = useState<ProgramItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Form State
   const initialForm: Partial<ProgramItem> = {
@@ -66,12 +69,14 @@ export const AdminProgramsSection: React.FC = () => {
   const openAddModal = () => {
     setEditingProgram(null);
     setFormData(initialForm);
+    setModalError(null);
     setIsFormOpen(true);
   };
 
   const openEditModal = (prog: ProgramItem) => {
     setEditingProgram(prog);
     setFormData({ ...prog });
+    setModalError(null);
     setIsFormOpen(true);
   };
 
@@ -96,7 +101,7 @@ export const AdminProgramsSection: React.FC = () => {
     }
   };
 
-  const handleSubmit = (isDraft: boolean) => {
+  const handleSubmit = async (isDraft: boolean) => {
     if (!formData.title?.trim()) {
       alert('Nama program wajib diisi');
       return;
@@ -128,27 +133,55 @@ export const AdminProgramsSection: React.FC = () => {
       order: editingProgram ? editingProgram.order : programs.length + 1,
     };
 
-    if (editingProgram) {
-      updateProgram(payload);
-      showToast('Program berhasil diperbarui!');
-    } else {
-      addProgram(payload);
-      showToast(isDraft ? 'Program disimpan sebagai draft!' : 'Program baru berhasil dipublikasikan!');
-    }
+    setIsSaving(true);
+    setModalError(null);
 
-    setIsFormOpen(false);
+    try {
+      if (editingProgram) {
+        const res = await updateProgram(payload);
+        if (res.success) {
+          showToast('Program berhasil diperbarui dan tersimpan di database!');
+          setIsFormOpen(false);
+        } else {
+          setModalError(`Gagal memperbarui program di database: ${res.error?.message || 'Terjadi kesalahan'}`);
+        }
+      } else {
+        const res = await addProgram(payload);
+        if (res.success) {
+          showToast(isDraft ? 'Program disimpan sebagai draft di database!' : 'Program baru berhasil dipublikasikan ke database!');
+          setIsFormOpen(false);
+        } else {
+          setModalError(`Gagal menambahkan program ke database: ${res.error?.message || 'Terjadi kesalahan'}`);
+        }
+      }
+    } catch (err: any) {
+      setModalError(`Terjadi kesalahan sistem: ${err?.message || 'Gagal menyimpan'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = (id: string, title: string) => {
+  const handleDelete = async (id: string, title: string) => {
     if (confirm(`Apakah Anda yakin ingin menghapus program: "${title}"?`)) {
-      deleteProgram(id);
-      showToast('Program berhasil dihapus.');
+      const res = await deleteProgram(id);
+      if (res.success) {
+        showToast('Program berhasil dihapus dari database.');
+        if (editingProgram?.id === id) {
+          setIsFormOpen(false);
+        }
+      } else {
+        alert(`Gagal menghapus program: ${res.error?.message || 'Terjadi kesalahan'}`);
+      }
     }
   };
 
-  const handleDuplicate = (id: string) => {
-    duplicateProgram(id);
-    showToast('Program berhasil diduplikasi.');
+  const handleDuplicate = async (id: string) => {
+    const res = await duplicateProgram(id);
+    if (res.success) {
+      showToast('Program berhasil diduplikasi ke database.');
+    } else {
+      alert(`Gagal menduplikasi program: ${res.error?.message || 'Terjadi kesalahan'}`);
+    }
   };
 
   // Filter programs
@@ -385,6 +418,13 @@ export const AdminProgramsSection: React.FC = () => {
 
             {/* Form Scrollable Body */}
             <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 text-xs">
+              {modalError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{modalError}</span>
+                </div>
+              )}
+
               {/* Row 1: Title & Slug */}
               <div className="space-y-1.5">
                 <label className="font-bold text-[#071F20] block">Nama Program *</label>
@@ -596,8 +636,9 @@ export const AdminProgramsSection: React.FC = () => {
               {editingProgram && (
                 <button
                   type="button"
+                  disabled={isSaving}
                   onClick={() => handleDelete(editingProgram.id, editingProgram.title)}
-                  className="px-3.5 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold"
+                  className="px-3.5 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer"
                 >
                   Hapus Program
                 </button>
@@ -606,17 +647,20 @@ export const AdminProgramsSection: React.FC = () => {
               <div className="flex items-center gap-2 ml-auto">
                 <button
                   type="button"
+                  disabled={isSaving}
                   onClick={() => handleSubmit(true)}
-                  className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold"
+                  className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold disabled:opacity-50 cursor-pointer"
                 >
                   Simpan Draft
                 </button>
                 <button
                   type="button"
+                  disabled={isSaving}
                   onClick={() => handleSubmit(false)}
-                  className="px-5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-xs"
+                  className="px-5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                 >
-                  {editingProgram ? 'Perbarui Program' : 'Publikasikan Program'}
+                  {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {isSaving ? 'Menyimpan ke Supabase...' : editingProgram ? 'Perbarui Program' : 'Publikasikan Program'}
                 </button>
               </div>
             </div>

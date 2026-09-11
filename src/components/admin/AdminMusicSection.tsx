@@ -30,6 +30,7 @@ export const AdminMusicSection: React.FC = () => {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Sync state if musicSettings change externally
   useEffect(() => {
@@ -56,8 +57,9 @@ export const AdminMusicSection: React.FC = () => {
     }
 
     setIsSaving(true);
+    setSaveError(null);
     try {
-      updateMusicSettings({
+      const res = await updateMusicSettings({
         is_enabled: isEnabled,
         youtube_url: youtubeUrl.trim(),
         title: title.trim() || 'Musik Latar Belakang',
@@ -66,8 +68,14 @@ export const AdminMusicSection: React.FC = () => {
         loop,
       });
 
-      setToastMessage('Pengaturan background music berhasil disimpan dan disinkronkan!');
-      setTimeout(() => setToastMessage(null), 3500);
+      if (res.success) {
+        setToastMessage('Pengaturan background music berhasil disimpan ke database!');
+        setTimeout(() => setToastMessage(null), 3500);
+      } else {
+        setSaveError(`Gagal menyimpan pengaturan musik: ${res.error?.message || 'Terjadi kesalahan'}`);
+      }
+    } catch (err: any) {
+      setSaveError(`Terjadi kesalahan sistem: ${err?.message || 'Gagal menyimpan'}`);
     } finally {
       setIsSaving(false);
     }
@@ -120,6 +128,14 @@ export const AdminMusicSection: React.FC = () => {
         <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Error Alert */}
+      {saveError && (
+        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{saveError}</span>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Image as ImageIcon,
@@ -18,6 +18,8 @@ import {
   Info,
   Link,
   ShieldCheck,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { HomepageContent, SectionVisibility } from '../../types';
@@ -87,8 +89,59 @@ export const AdminContentSection: React.FC<AdminContentSectionProps> = ({
     initialTab
   );
   const [saveNotification, setSaveNotification] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [mediaTargetField, setMediaTargetField] = useState<'heroImageUrl' | 'bannerImageUrl'>('heroImageUrl');
+
+  // Sync state from Supabase when external updates arrive
+  useEffect(() => {
+    if (!isDraftModeActive) {
+      setFormData((prev) => ({
+        ...homepageContent,
+        sectionsVisibility: {
+          hero: true,
+          stats: true,
+          about: true,
+          featuredPrograms: true,
+          videos: true,
+          documentations: true,
+          bankAccounts: true,
+          cta: true,
+          testimonials: false,
+          banner: true,
+          gallery: true,
+          footer: true,
+          ...(homepageContent.sectionsVisibility || {}),
+        },
+        sectionsOrder: homepageContent.sectionsOrder || prev.sectionsOrder || [
+          'hero',
+          'stats',
+          'featuredPrograms',
+          'videos',
+          'documentations',
+          'bankAccounts',
+          'about',
+          'banner',
+          'cta',
+          'testimonials',
+        ],
+      }));
+    }
+  }, [homepageContent, isDraftModeActive]);
+
+  useEffect(() => {
+    setFooterData({
+      footerCopyright: siteSettings.footerCopyright || '© 2026 Lembaga Kesejahteraan Sosial Irsyadul Amal Garut. Seluruh Hak Cipta Dilindungi.',
+      address: siteSettings.address,
+      whatsapp: siteSettings.whatsapp,
+      email: siteSettings.email,
+      operatingHours: siteSettings.operatingHours,
+      instagram: siteSettings.instagram || '',
+      facebook: siteSettings.facebook || '',
+      youtube: siteSettings.youtube || '',
+    });
+  }, [siteSettings]);
 
   const handleFieldChange = (field: keyof HomepageContent, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -98,23 +151,53 @@ export const AdminContentSection: React.FC<AdminContentSectionProps> = ({
     setFooterData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handlePublishDirectly = () => {
-    updateHomepageContent(formData, true);
-    updateSiteSettings(footerData);
-    setSaveNotification('Konten berhasil dipublikasikan langsung ke Website Publik!');
-    setTimeout(() => setSaveNotification(null), 3000);
+  const handlePublishDirectly = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveNotification(null);
+    try {
+      const [resContent, resSettings] = await Promise.all([
+        updateHomepageContent(formData, true),
+        updateSiteSettings(footerData),
+      ]);
+      if (!resContent.success || !resSettings.success) {
+        const errMsg = resContent.error?.message || resSettings.error?.message || 'Gagal menyimpan ke database Supabase.';
+        setSaveError(`Gagal mempublikasikan konten: ${errMsg}`);
+      } else {
+        setSaveNotification('Konten berhasil disimpan ke Supabase dan langsung tampil di Website Publik!');
+        setTimeout(() => setSaveNotification(null), 4000);
+      }
+    } catch (err: any) {
+      setSaveError(`Terjadi kesalahan sistem: ${err?.message || 'Gagal menyimpan'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSaveAsDraft = () => {
-    saveHomepageDraft(formData);
-    updateSiteSettings(footerData);
-    setSaveNotification('Draft berhasil disimpan! Anda dapat menguji pratinjau sebelum mempublikasikannya.');
-    setTimeout(() => setSaveNotification(null), 3500);
+  const handleSaveAsDraft = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveNotification(null);
+    try {
+      saveHomepageDraft(formData);
+      const resSettings = await updateSiteSettings(footerData);
+      if (!resSettings.success) {
+        setSaveError(`Gagal menyimpan pengaturan: ${resSettings.error?.message || 'Terjadi kesalahan'}`);
+      } else {
+        setSaveNotification('Draft berhasil disimpan! Anda dapat menguji pratinjau sebelum mempublikasikannya.');
+        setTimeout(() => setSaveNotification(null), 3500);
+      }
+    } catch (err: any) {
+      setSaveError(`Terjadi kesalahan sistem: ${err?.message || 'Gagal menyimpan'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDiscardDraft = () => {
     discardHomepageDraft();
     setFormData({ ...homepageContent });
+    setSaveError(null);
     setSaveNotification('Perubahan draft dibatalkan.');
     setTimeout(() => setSaveNotification(null), 2500);
   };
@@ -187,8 +270,9 @@ export const AdminContentSection: React.FC<AdminContentSectionProps> = ({
           {isDraftModeActive && (
             <button
               type="button"
+              disabled={isSaving}
               onClick={handleDiscardDraft}
-              className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
+              className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Batal Draft
@@ -197,23 +281,33 @@ export const AdminContentSection: React.FC<AdminContentSectionProps> = ({
 
           <button
             type="button"
+            disabled={isSaving}
             onClick={handleSaveAsDraft}
-            className="px-4 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#008284] text-xs font-extrabold flex items-center gap-1.5 transition-colors border border-[#BDE3E3]"
+            className="px-4 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#008284] text-xs font-extrabold flex items-center gap-1.5 transition-colors border border-[#BDE3E3] disabled:opacity-50 cursor-pointer"
           >
-            <Save className="w-3.5 h-3.5" />
+            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             Simpan Draft
           </button>
 
           <button
             type="button"
+            disabled={isSaving}
             onClick={handlePublishDirectly}
-            className="px-5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
+            className="px-5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-xs flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
           >
-            <CheckCircle2 className="w-4 h-4" />
-            Publikasikan ke Website
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            {isSaving ? 'Menyimpan ke Supabase...' : 'Publikasikan ke Website'}
           </button>
         </div>
       </div>
+
+      {/* Error Notification */}
+      {saveError && (
+        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{saveError}</span>
+        </div>
+      )}
 
       {/* Toast Notification */}
       {saveNotification && (

@@ -224,7 +224,26 @@ CREATE TABLE IF NOT EXISTS admin_users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 17. ROW LEVEL SECURITY (RLS) POLICIES
+-- 17. FUNGSI OTORISASI ADMIN (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.admin_users
+    WHERE user_id = auth.uid()
+      AND role IN ('admin', 'super_admin')
+      AND is_active = true
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated;
+
+-- 18. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE homepage_content ENABLE ROW LEVEL SECURITY;
 ALTER TABLE programs ENABLE ROW LEVEL SECURITY;
@@ -237,27 +256,28 @@ ALTER TABLE media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE donations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE donors ENABLE ROW LEVEL SECURITY;
 
--- Kebijakan Baca Publik (Anon)
+-- Kebijakan Baca Publik (Anon & Admin)
 CREATE POLICY "Publik dapat membaca settings" ON site_settings FOR SELECT USING (true);
 CREATE POLICY "Publik dapat membaca homepage" ON homepage_content FOR SELECT USING (true);
-CREATE POLICY "Publik dapat membaca program published" ON programs FOR SELECT USING (is_draft = false);
-CREATE POLICY "Publik dapat membaca rekening aktif" ON bank_accounts FOR SELECT USING (is_active = true);
-CREATE POLICY "Publik dapat membaca laporan published" ON reports FOR SELECT USING (status = 'DIPUBLIKASIKAN');
-CREATE POLICY "Publik dapat membaca dokumentasi" ON documentations FOR SELECT USING (is_active = true);
-CREATE POLICY "Publik dapat membaca video aktif" ON videos FOR SELECT USING (is_active = true);
+CREATE POLICY "Publik dapat membaca program published" ON programs FOR SELECT USING (is_draft = false OR public.is_admin());
+CREATE POLICY "Publik dapat membaca rekening aktif" ON bank_accounts FOR SELECT USING (is_active = true OR public.is_admin());
+CREATE POLICY "Publik dapat membaca laporan published" ON reports FOR SELECT USING (status = 'DIPUBLIKASIKAN' OR public.is_admin());
+CREATE POLICY "Publik dapat membaca dokumentasi" ON documentations FOR SELECT USING (is_active = true OR public.is_admin());
+CREATE POLICY "Publik dapat membaca video aktif" ON videos FOR SELECT USING (is_active = true OR public.is_admin());
 CREATE POLICY "Publik dapat membaca music settings" ON music_settings FOR SELECT USING (true);
 CREATE POLICY "Publik dapat submit donasi" ON donations FOR INSERT WITH CHECK (true);
 
--- Kebijakan Tulis Admin (Authenticated)
-CREATE POLICY "Admin dapat mengelola semua data" ON site_settings FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin dapat mengelola homepage" ON homepage_content FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin dapat mengelola programs" ON programs FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin dapat mengelola rekening" ON bank_accounts FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin dapat mengelola laporan" ON reports FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin dapat mengelola dokumentasi" ON documentations FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin dapat mengelola videos" ON videos FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin dapat mengelola music settings" ON music_settings FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin dapat mengelola donasi" ON donations FOR ALL TO authenticated USING (true);
+-- Kebijakan Tulis Admin Terverifikasi (Hanya jika terdaftar di admin_users dengan is_active=true)
+CREATE POLICY "Admin dapat mengelola settings" ON site_settings FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin dapat mengelola homepage" ON homepage_content FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin dapat mengelola programs" ON programs FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin dapat mengelola rekening" ON bank_accounts FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin dapat mengelola laporan" ON reports FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin dapat mengelola dokumentasi" ON documentations FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin dapat mengelola videos" ON videos FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin dapat mengelola music settings" ON music_settings FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin dapat mengelola donasi" ON donations FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin dapat mengelola media" ON media FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 `;
 
 export const SUPABASE_SCHEMA_SQL = SUPABASE_SQL_SCHEMA;
