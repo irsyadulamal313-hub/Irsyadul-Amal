@@ -24,6 +24,7 @@ import {
 import { useCMS } from '../../data/cmsContext';
 import { HomepageContent, SectionVisibility } from '../../types';
 import { MediaPickerModal } from './MediaPickerModal';
+import { uploadMediaFile } from '../../lib/supabase';
 
 interface AdminContentSectionProps {
   initialTab?: 'beranda' | 'tentang' | 'banner' | 'cta' | 'footer' | 'sections';
@@ -91,8 +92,35 @@ export const AdminContentSection: React.FC<AdminContentSectionProps> = ({
   const [saveNotification, setSaveNotification] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [mediaTargetField, setMediaTargetField] = useState<'heroImageUrl' | 'bannerImageUrl'>('heroImageUrl');
+
+  const handleDirectImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: 'heroImageUrl' | 'bannerImageUrl'
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    setSaveError(null);
+    try {
+      const folder = field === 'heroImageUrl' ? 'hero' : 'banner';
+      const res = await uploadMediaFile(file, 'media', folder);
+      if (res.url) {
+        handleFieldChange(field, res.url);
+        setSaveNotification(`Gambar ${field === 'heroImageUrl' ? 'Hero' : 'Banner'} berhasil diunggah ke Storage!`);
+        setTimeout(() => setSaveNotification(null), 3000);
+      } else {
+        setSaveError(res.error || 'Gagal mengunggah gambar ke Storage.');
+      }
+    } catch (err: any) {
+      setSaveError(`Gagal upload gambar: ${err?.message || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   // Sync state from Supabase when external updates arrive
   useEffect(() => {
@@ -449,13 +477,25 @@ export const AdminContentSection: React.FC<AdminContentSectionProps> = ({
                   />
 
                   <div className="flex flex-wrap items-center gap-2">
+                    <label className={`px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${isUploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {isUploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#008284]" /> : <Upload className="w-3.5 h-3.5 text-[#008284]" />}
+                      <span>{isUploadingImage ? 'Mengunggah...' : 'Upload dari Perangkat'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingImage}
+                        onChange={(e) => handleDirectImageUpload(e, 'heroImageUrl')}
+                        className="hidden"
+                      />
+                    </label>
+
                     <button
                       type="button"
                       onClick={() => {
                         setMediaTargetField('heroImageUrl');
                         setIsMediaPickerOpen(true);
                       }}
-                      className="px-3.5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+                      className="px-3.5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
                     >
                       <ImageIcon className="w-3.5 h-3.5" />
                       Pilih dari Media Library
@@ -797,17 +837,31 @@ export const AdminContentSection: React.FC<AdminContentSectionProps> = ({
                     placeholder="URL gambar banner (https://...)"
                     className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:border-[#008284] outline-none font-mono"
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMediaTargetField('bannerImageUrl');
-                      setIsMediaPickerOpen(true);
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs"
-                  >
-                    <ImageIcon className="w-3.5 h-3.5" />
-                    Pilih dari Media Library
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className={`px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${isUploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {isUploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#008284]" /> : <Upload className="w-3.5 h-3.5 text-[#008284]" />}
+                      <span>{isUploadingImage ? 'Mengunggah...' : 'Upload dari Perangkat'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingImage}
+                        onChange={(e) => handleDirectImageUpload(e, 'bannerImageUrl')}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMediaTargetField('bannerImageUrl');
+                        setIsMediaPickerOpen(true);
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      Pilih dari Media Library
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

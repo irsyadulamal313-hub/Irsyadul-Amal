@@ -19,9 +19,12 @@ import {
   Users,
   Target,
   Loader2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { ProgramItem, ProgramStatus } from '../../types';
+import { uploadMediaFile } from '../../lib/supabase';
+import { MediaPickerModal } from './MediaPickerModal';
 
 export const AdminProgramsSection: React.FC = () => {
   const { programs, categories, addProgram, updateProgram, deleteProgram, duplicateProgram } =
@@ -35,6 +38,8 @@ export const AdminProgramsSection: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
 
   // Form State
   const initialForm: Partial<ProgramItem> = {
@@ -88,16 +93,25 @@ export const AdminProgramsSection: React.FC = () => {
     setFormData((prev) => ({ ...prev, title, slug }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setFormData((prev) => ({ ...prev, imageUrl: reader.result as string }));
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    setModalError(null);
+    try {
+      const res = await uploadMediaFile(file, 'media', 'programs');
+      if (res.url) {
+        setFormData((prev) => ({ ...prev, imageUrl: res.url }));
+        setToastMessage('Foto berhasil diunggah ke Supabase Storage!');
+        setTimeout(() => setToastMessage(null), 3000);
+      } else {
+        setModalError(res.error || 'Gagal mengunggah foto ke Supabase Storage.');
+      }
+    } catch (err: any) {
+      setModalError(`Gagal upload: ${err?.message || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -489,26 +503,37 @@ export const AdminProgramsSection: React.FC = () => {
                   <img
                     src={formData.imageUrl}
                     alt="Preview"
-                    className="w-24 h-20 rounded-xl object-cover border"
+                    className="w-24 h-20 rounded-xl object-cover border bg-gray-200 shrink-0"
                   />
                   <div className="flex-1 space-y-2 w-full">
                     <input
                       type="url"
                       value={formData.imageUrl || ''}
                       onChange={(e) => setFormData((p) => ({ ...p, imageUrl: e.target.value }))}
-                      placeholder="Masukkan URL foto..."
+                      placeholder="Masukkan URL foto atau unggah langsung..."
                       className="w-full px-3 py-1.5 rounded-lg border border-gray-300 text-xs outline-none"
                     />
-                    <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-100 text-[11px] font-bold text-gray-700 cursor-pointer">
-                      <Upload className="w-3.5 h-3.5" />
-                      Unggah File dari Komputer
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                    </label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-100 text-[11px] font-bold text-gray-700 cursor-pointer ${isUploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                        {isUploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#008284]" /> : <Upload className="w-3.5 h-3.5 text-[#008284]" />}
+                        {isUploadingImage ? 'Mengunggah ke Storage...' : 'Unggah File (Supabase Storage)'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={isUploadingImage}
+                          onChange={handleImageUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setIsMediaPickerOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#008284]/10 hover:bg-[#008284]/20 text-[#008284] text-[11px] font-bold cursor-pointer transition-colors"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        Pilih dari Media Library
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -667,6 +692,18 @@ export const AdminProgramsSection: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Media Picker Modal */}
+      <MediaPickerModal
+        isOpen={isMediaPickerOpen}
+        onClose={() => setIsMediaPickerOpen(false)}
+        categoryFilter="Program"
+        title="Pilih Foto Program dari Media Library"
+        onSelectImage={(url) => {
+          setFormData((p) => ({ ...p, imageUrl: url }));
+          setIsMediaPickerOpen(false);
+        }}
+      />
     </div>
   );
 };

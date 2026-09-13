@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_SQL_SCHEMA as MASTER_SCHEMA } from '../data/supabaseSchema';
 
 // Retrieve configuration from Vite environment variables (client-safe VITE_ prefix)
 // with safe fallback to saved local configuration for preview convenience
@@ -142,12 +143,13 @@ export async function uploadMediaFile(
     }
 
     // If Supabase is active, upload to bucket
-    if (supabase && isSupabaseConfigured()) {
+    const client = getSupabase();
+    if (client && isSupabaseConfigured()) {
       const fileExt = file.name.split('.').pop() || 'jpg';
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
       const filePath = `${folder}/${Date.now()}_${sanitizedName}.${fileExt}`;
 
-      const { data, error: uploadError } = await supabase.storage
+      const { data, error: uploadError } = await client.storage
         .from(bucket)
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -164,7 +166,7 @@ export async function uploadMediaFile(
       }
 
       if (data) {
-        const { data: publicUrlData } = supabase.storage
+        const { data: publicUrlData } = client.storage
           .from(bucket)
           .getPublicUrl(filePath);
 
@@ -209,7 +211,10 @@ export async function uploadMediaFile(
  * - Row Level Security (RLS) policies
  * - Storage Bucket policies
  */
-export const SUPABASE_SQL_SCHEMA = `-- ============================================================
+export const SUPABASE_SQL_SCHEMA = MASTER_SCHEMA;
+export const SUPABASE_SCHEMA_SQL = MASTER_SCHEMA;
+
+export const INLINE_FALLBACK_SQL_SCHEMA = `-- ============================================================
 -- SKEMA RESMI DATABASE SUPABASE - IRSYADUL AMAL
 -- Lembaga Sosial & Kemanusiaan - Garut, Jawa Barat
 -- ============================================================

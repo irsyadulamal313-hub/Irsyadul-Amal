@@ -135,6 +135,7 @@ export async function fetchSiteSettingsFromSupabase(): Promise<{ data: Partial<S
       footerCopyright: data.footer_copyright || '© 2026 Irsyadul Amal. Semua Hak Dilindungi.',
       seoTitle: data.seo_title || '',
       seoDescription: data.seo_description || '',
+      logo: data.logo_url || data.logo || '',
       navLabels: data.nav_labels || {
         beranda: 'Beranda',
         donasi: 'Donasi',
@@ -196,6 +197,7 @@ export async function saveSiteSettingsToSupabase(settings: SiteSettings): Promis
       footer_copyright: settings.footerCopyright || '',
       seo_title: settings.seoTitle || '',
       seo_description: settings.seoDescription || '',
+      logo_url: settings.logo || '',
       nav_labels: settings.navLabels || {},
       wa_confirmation_template: settings.waConfirmationTemplate || '',
       updated_at: new Date().toISOString(),

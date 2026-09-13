@@ -1,11 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useCMS } from '../data/cmsContext';
 
 interface LogoProps {
   className?: string;
   size?: number;
+  src?: string;
 }
 
-export const IrsyadulAmalLogo: React.FC<LogoProps> = ({ className = '', size = 48 }) => {
+export const IrsyadulAmalLogo: React.FC<LogoProps> = ({ className = '', size = 48, src }) => {
+  const { siteSettings } = useCMS();
+  const [imgError, setImgError] = useState(false);
+
+  const logoUrl = src || siteSettings?.logo;
+
+  if (logoUrl && !imgError) {
+    return (
+      <div
+        className={`relative inline-flex items-center justify-center shrink-0 overflow-hidden ${className}`}
+        style={{ width: size, height: size }}
+        aria-label="Logo Yayasan Irsyadul Amal Indonesia"
+      >
+        <img
+          src={logoUrl}
+          alt={siteSettings?.name || 'Irsyadul Amal Logo'}
+          onError={() => setImgError(true)}
+          className="w-full h-full object-contain"
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className={`relative inline-flex items-center justify-center shrink-0 ${className}`}

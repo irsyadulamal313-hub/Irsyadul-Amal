@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Upload, Check, Image as ImageIcon, Search } from 'lucide-react';
+import { X, Upload, Check, Image as ImageIcon, Search, Loader2, AlertCircle } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { MediaItem } from '../../types';
+import { uploadMediaFile } from '../../lib/supabase';
 
 interface MediaPickerModalProps {
   isOpen: boolean;
@@ -21,28 +22,37 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   const { media, addMedia } = useCMS();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          const newMedia: MediaItem = {
-            id: `med-${Date.now()}`,
-            title: file.name.replace(/\.[^/.]+$/, ''),
-            category: (categoryFilter as any) || 'Lainnya',
-            url: reader.result,
-            uploadedAt: new Date().toISOString().split('T')[0],
-            caption: 'Foto diunggah oleh admin',
-          };
-          addMedia(newMedia);
-          setSelectedUrl(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const res = await uploadMediaFile(file, 'media', 'library');
+      if (res.url) {
+        const newMedia: MediaItem = {
+          id: `med-${Date.now()}`,
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          category: (categoryFilter as any) || 'Program',
+          url: res.url,
+          uploadedAt: new Date().toISOString().split('T')[0],
+          caption: 'Foto diunggah ke Supabase Storage',
+        };
+        addMedia(newMedia);
+        setSelectedUrl(res.url);
+      } else {
+        setUploadError(res.error || 'Gagal mengunggah foto ke Supabase Storage.');
+      }
+    } catch (err: any) {
+      setUploadError(`Gagal upload: ${err?.message || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -84,23 +94,31 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
         </div>
 
         {/* Toolbar */}
-        <div className="p-4 border-b border-[#E0EAEA] bg-gray-50 flex flex-col sm:flex-row gap-3 items-center justify-between">
-          <div className="relative w-full sm:w-72">
-            <input
-              type="text"
-              placeholder="Cari foto..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-300 text-xs outline-none focus:border-[#008284] bg-white"
-            />
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-          </div>
+        <div className="p-4 border-b border-[#E0EAEA] bg-gray-50 flex flex-col gap-3">
+          {uploadError && (
+            <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{uploadError}</span>
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:w-72">
+              <input
+                type="text"
+                placeholder="Cari foto..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-300 text-xs outline-none focus:border-[#008284] bg-white"
+              />
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+            </div>
 
-          <label className="w-full sm:w-auto px-4 py-2 bg-[#008284] hover:bg-[#006E70] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors shrink-0">
-            <Upload className="w-4 h-4" />
-            Unggah Foto Baru
-            <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-          </label>
+            <label className={`w-full sm:w-auto px-4 py-2 bg-[#008284] hover:bg-[#006E70] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors shrink-0 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {isUploading ? 'Mengunggah ke Storage...' : 'Unggah Foto Baru'}
+              <input type="file" accept="image/*" disabled={isUploading} onChange={handleFileUpload} className="hidden" />
+            </label>
+          </div>
         </div>
 
         {/* Media Grid */}

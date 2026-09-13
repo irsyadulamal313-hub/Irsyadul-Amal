@@ -224,6 +224,7 @@ export interface SiteSettings {
   operationalHours?: string;
   whatsappConfirmationTemplate?: string;
   whatsappDefaultMessage?: string;
+  logo?: string;
   navLabels?: {
     beranda: string;
     donasi: string;

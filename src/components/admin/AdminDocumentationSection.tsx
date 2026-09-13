@@ -17,6 +17,8 @@ import {
 import { useCMS } from '../../data/cmsContext';
 import { DocumentationItem } from '../../types';
 import { PhotoLightboxModal } from '../PhotoLightboxModal';
+import { uploadMediaFile } from '../../lib/supabase';
+import { MediaPickerModal } from './MediaPickerModal';
 
 export const AdminDocumentationSection: React.FC = () => {
   const { documentations, addDocumentation, updateDocumentation, deleteDocumentation, toggleDocumentationActive, programs } =
@@ -27,6 +29,8 @@ export const AdminDocumentationSection: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
 
   // Lightbox preview state
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -83,16 +87,24 @@ export const AdminDocumentationSection: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setImageUrl(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    setModalError(null);
+    try {
+      const res = await uploadMediaFile(file, 'media', 'documentation');
+      if (res.url) {
+        setImageUrl(res.url);
+        showToast('Foto dokumentasi berhasil diunggah ke Storage!');
+      } else {
+        setModalError(res.error || 'Gagal mengunggah foto ke Supabase Storage.');
+      }
+    } catch (err: any) {
+      setModalError(`Gagal upload: ${err?.message || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -405,25 +417,36 @@ export const AdminDocumentationSection: React.FC = () => {
                 <label className="font-bold text-gray-700 block">
                   URL Foto / Gambar <span className="text-rose-500">*</span>
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    required
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="flex-1 px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#008284]/20 focus:border-[#008284] text-xs font-mono"
-                  />
-                  <label className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold cursor-pointer shrink-0 flex items-center gap-1.5">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Upload</span>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
                     <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
+                      type="url"
+                      required
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1 px-3.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#008284]/20 focus:border-[#008284] text-xs font-mono"
                     />
-                  </label>
+                    <label className={`px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold cursor-pointer shrink-0 flex items-center gap-1.5 ${isUploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {isUploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#008284]" /> : <Upload className="w-3.5 h-3.5" />}
+                      <span>{isUploadingImage ? 'Mengunggah...' : 'Upload'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingImage}
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsMediaPickerOpen(true)}
+                      className="px-3 py-2 bg-[#008284]/10 hover:bg-[#008284]/20 text-[#008284] rounded-xl text-xs font-bold shrink-0 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Media Library</span>
+                    </button>
+                  </div>
                 </div>
                 {imageUrl && (
                   <div className="mt-2 h-28 rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
@@ -523,6 +546,18 @@ export const AdminDocumentationSection: React.FC = () => {
         isOpen={isLightboxOpen}
         onClose={() => setIsLightboxOpen(false)}
         onNavigate={(newIdx) => setLightboxIndex(newIdx)}
+      />
+
+      {/* Media Picker Modal */}
+      <MediaPickerModal
+        isOpen={isMediaPickerOpen}
+        onClose={() => setIsMediaPickerOpen(false)}
+        categoryFilter="Dokumentasi"
+        title="Pilih Foto Dokumentasi dari Media Library"
+        onSelectImage={(url) => {
+          setImageUrl(url);
+          setIsMediaPickerOpen(false);
+        }}
       />
     </div>
   );

@@ -17,9 +17,13 @@ import {
   Navigation,
   UserCheck,
   Key,
+  Loader2,
+  AlertCircle,
+  Upload,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { SiteSettings } from '../../types';
+import { uploadMediaFile } from '../../lib/supabase';
 
 interface AdminSettingsSectionProps {
   subTab?: 'identity' | 'nav' | 'seo' | 'admin';
@@ -46,6 +50,9 @@ export const AdminSettingsSection: React.FC<AdminSettingsSectionProps> = ({
   });
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   const handleChange = (field: keyof SiteSettings, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -67,14 +74,49 @@ export const AdminSettingsSection: React.FC<AdminSettingsSectionProps> = ({
     }));
   };
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateSiteSettings(formData);
-    setToastMessage('Pengaturan website berhasil disimpan dan diperbarui!');
-    setTimeout(() => setToastMessage(null), 3000);
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingLogo(true);
+    setSaveError(null);
+    try {
+      const res = await uploadMediaFile(file, 'logos', 'branding');
+      if (res.url) {
+        setFormData((prev) => ({ ...prev, logo: res.url }));
+        setToastMessage('Logo lembaga berhasil diunggah ke Supabase Storage!');
+        setTimeout(() => setToastMessage(null), 3000);
+      } else {
+        setSaveError(res.error || 'Gagal mengunggah logo ke Storage.');
+      }
+    } catch (err: any) {
+      setSaveError(`Gagal upload: ${err?.message || 'Terjadi kesalahan'}`);
+    } finally {
+      setIsUploadingLogo(false);
+    }
   };
 
-  const handleResetDefault = () => {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const res = await updateSiteSettings(formData);
+      if (res.success) {
+        setToastMessage('Pengaturan website berhasil disimpan dan disinkronkan ke Supabase!');
+        setTimeout(() => setToastMessage(null), 3000);
+      } else {
+        setSaveError(`Gagal menyimpan ke database Supabase: ${res.error?.message || 'Periksa RLS / koneksi database'}`);
+      }
+    } catch (err: any) {
+      setSaveError(`Gagal menyimpan: ${err?.message || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleResetDefault = async () => {
     if (confirm('Kembalikan ke identitas resmi default Irsyadul Amal?')) {
       const defaultData: SiteSettings = {
         name: 'IRSYADUL AMAL',
@@ -99,8 +141,14 @@ export const AdminSettingsSection: React.FC<AdminSettingsSectionProps> = ({
         },
       };
       setFormData(defaultData);
-      updateSiteSettings(defaultData);
-      setToastMessage('Data telah direset ke default resmi.');
+      setIsSaving(true);
+      const res = await updateSiteSettings(defaultData);
+      setIsSaving(false);
+      if (res.success) {
+        setToastMessage('Data telah direset ke default resmi dan tersimpan di database.');
+      } else {
+        setSaveError(`Gagal menyimpan reset ke Supabase: ${res.error?.message || 'Periksa tabel database'}`);
+      }
       setTimeout(() => setToastMessage(null), 3000);
     }
   };
@@ -166,6 +214,16 @@ export const AdminSettingsSection: React.FC<AdminSettingsSectionProps> = ({
 
       {/* Forms based on activeTab */}
       <form onSubmit={handleSave} className="space-y-6">
+        {saveError && (
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Gagal Menyimpan ke Supabase:</p>
+              <p className="text-[11px] font-normal mt-0.5">{saveError}</p>
+            </div>
+          </div>
+        )}
+
         {/* TAB 1: IDENTITAS LEMBAGA */}
         {activeTab === 'identity' && (
           <div className="bg-white p-6 rounded-2xl border border-[#E0EAEA] shadow-2xs space-y-4">
@@ -173,6 +231,47 @@ export const AdminSettingsSection: React.FC<AdminSettingsSectionProps> = ({
               <Building className="w-4 h-4 text-[#008284]" />
               Identitas & Legalitas Lembaga
             </h2>
+
+            {/* Logo Lembaga */}
+            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3">
+              <label className="text-xs font-bold text-[#071F20] block">Logo Lembaga (Header & Footer)</label>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                {formData.logo ? (
+                  <div className="w-20 h-20 rounded-xl bg-white border border-gray-200 p-2 flex items-center justify-center shrink-0">
+                    <img src={formData.logo} alt="Logo" className="max-h-full max-w-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-xl bg-gray-200 border border-gray-300 flex items-center justify-center text-gray-400 text-xs font-bold shrink-0">
+                    No Logo
+                  </div>
+                )}
+                <div className="flex-1 w-full space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={formData.logo || ''}
+                      onChange={(e) => handleChange('logo', e.target.value)}
+                      placeholder="https://... atau unggah gambar logo baru"
+                      className="flex-1 px-3 py-2 rounded-xl border border-gray-300 text-xs outline-none"
+                    />
+                    <label className={`px-3 py-2 bg-[#008284] hover:bg-[#006769] text-white rounded-xl text-xs font-bold cursor-pointer shrink-0 flex items-center gap-1.5 transition-colors ${isUploadingLogo ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {isUploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                      <span>{isUploadingLogo ? 'Mengunggah...' : 'Upload Logo'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingLogo}
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  <p className="text-[10px] text-gray-500">
+                    Format disarankan: PNG transparan atau SVG. Ukuran ideal 256x256 piksel.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
@@ -401,10 +500,13 @@ export const AdminSettingsSection: React.FC<AdminSettingsSectionProps> = ({
         <div className="flex justify-end pt-2">
           <button
             type="submit"
-            className="px-6 py-3 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-md flex items-center gap-2 transition-all active:scale-95"
+            disabled={isSaving}
+            className={`px-6 py-3 rounded-xl bg-[#008284] hover:bg-[#006769] text-white text-xs font-extrabold shadow-md flex items-center gap-2 transition-all active:scale-95 ${
+              isSaving ? 'opacity-70 cursor-not-allowed' : ''
+            }`}
           >
-            <Save className="w-4 h-4" />
-            Simpan Pengaturan
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span>{isSaving ? 'Menyimpan ke Supabase...' : 'Simpan Pengaturan'}</span>
           </button>
         </div>
       </form>

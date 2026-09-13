@@ -13,9 +13,12 @@ import {
   X,
   Sparkles,
   Filter,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { MediaItem } from '../../types';
+import { uploadMediaFile } from '../../lib/supabase';
 
 interface AdminMediaSectionProps {
   categoryFilter?: string;
@@ -27,6 +30,8 @@ export const AdminMediaSection: React.FC<AdminMediaSectionProps> = ({ categoryFi
   const [selectedCategory, setSelectedCategory] = useState<string>(categoryFilter || 'Semua');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Upload modal state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -46,65 +51,84 @@ export const AdminMediaSection: React.FC<AdminMediaSectionProps> = ({ categoryFi
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setNewImageUrl(reader.result);
-          if (!newTitle) {
-            setNewTitle(file.name.replace(/\.[^/.]+$/, ''));
-          }
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const res = await uploadMediaFile(file, 'media', 'library');
+      if (res.url) {
+        setNewImageUrl(res.url);
+        if (!newTitle) {
+          setNewTitle(file.name.replace(/\.[^/.]+$/, ''));
         }
-      };
-      reader.readAsDataURL(file);
+      } else {
+        setUploadError(res.error || 'Gagal mengunggah foto ke Supabase Storage.');
+      }
+    } catch (err: any) {
+      setUploadError(`Gagal upload: ${err?.message || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const handleReplaceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReplaceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && replacingItem) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          updateMedia({
-            ...replacingItem,
-            url: reader.result,
-            isPlaceholder: false,
-            uploadedAt: new Date().toISOString().split('T')[0],
-          });
-          setReplacingItem(null);
-          showToast(`Foto "${replacingItem.title}" berhasil diganti!`);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file || !replacingItem) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const res = await uploadMediaFile(file, 'media', 'library');
+      if (res.url) {
+        await updateMedia({
+          ...replacingItem,
+          url: res.url,
+          isPlaceholder: false,
+          uploadedAt: new Date().toISOString().split('T')[0],
+        });
+        setReplacingItem(null);
+        showToast(`Foto "${replacingItem.title}" berhasil diganti di Supabase Storage!`);
+      } else {
+        setUploadError(res.error || 'Gagal mengunggah foto ke Supabase Storage.');
+      }
+    } catch (err: any) {
+      setUploadError(`Gagal upload: ${err?.message || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const handleSaveNewPhoto = (e: React.FormEvent) => {
+  const handleSaveNewPhoto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newImageUrl) {
-      alert('Pilih foto terlebih dahulu.');
+      setUploadError('Pilih file foto terlebih dahulu atau tunggu unggahan selesai.');
       return;
     }
 
-    const newItem: MediaItem = {
-      id: `med-${Date.now()}`,
-      title: newTitle.trim() || 'Foto Kegiatan',
-      category: newCategory,
-      url: newImageUrl,
-      caption: newCaption.trim() || undefined,
-      uploadedAt: new Date().toISOString().split('T')[0],
-      isPlaceholder: false,
-    };
+    try {
+      const newItem: MediaItem = {
+        id: `med-${Date.now()}`,
+        title: newTitle.trim() || 'Foto Kegiatan',
+        category: newCategory,
+        url: newImageUrl,
+        caption: newCaption.trim() || undefined,
+        uploadedAt: new Date().toISOString().split('T')[0],
+        isPlaceholder: false,
+      };
 
-    addMedia(newItem);
-    showToast('Foto baru berhasil diunggah ke Pustaka Media!');
-    setIsUploadModalOpen(false);
-    setNewTitle('');
-    setNewImageUrl('');
-    setNewCaption('');
+      await addMedia(newItem);
+      showToast('Foto baru berhasil disimpan!');
+      setIsUploadModalOpen(false);
+      setNewTitle('');
+      setNewImageUrl('');
+      setNewCaption('');
+      setUploadError(null);
+    } catch (err: any) {
+      setUploadError(`Gagal menyimpan: ${err?.message || 'Terjadi kesalahan'}`);
+    }
   };
 
   const handleCopyUrl = (url: string, id: string) => {
@@ -347,11 +371,25 @@ export const AdminMediaSection: React.FC<AdminMediaSectionProps> = ({ categoryFi
             </div>
 
             <form onSubmit={handleSaveNewPhoto} className="p-6 space-y-4">
+              {uploadError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+
               {/* Image Preview & Upload Input */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[#071F20] block">Pilih File Foto</label>
-                <div className="border-2 border-dashed border-gray-300 hover:border-[#008284] rounded-2xl p-4 text-center cursor-pointer transition-colors relative bg-gray-50">
-                  {newImageUrl ? (
+                <div className={`border-2 border-dashed border-gray-300 hover:border-[#008284] rounded-2xl p-4 text-center cursor-pointer transition-colors relative bg-gray-50 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  {isUploading ? (
+                    <div className="space-y-2 py-6">
+                      <Loader2 className="w-8 h-8 text-[#008284] mx-auto animate-spin" />
+                      <p className="text-xs font-bold text-[#008284]">
+                        Mengunggah foto ke Supabase Storage...
+                      </p>
+                    </div>
+                  ) : newImageUrl ? (
                     <div className="space-y-2">
                       <img
                         src={newImageUrl}
@@ -366,12 +404,13 @@ export const AdminMediaSection: React.FC<AdminMediaSectionProps> = ({ categoryFi
                       <p className="text-xs font-bold text-gray-700">
                         Klik untuk memilih foto dari perangkat Anda
                       </p>
-                      <p className="text-[10px] text-gray-400">Mendukung format JPG, PNG, WebP</p>
+                      <p className="text-[10px] text-gray-400">Mendukung format JPG, PNG, WebP (Supabase Storage)</p>
                     </div>
                   )}
                   <input
                     type="file"
                     accept="image/*"
+                    disabled={isUploading}
                     onChange={handleFileUpload}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
@@ -471,15 +510,32 @@ export const AdminMediaSection: React.FC<AdminMediaSectionProps> = ({ categoryFi
                 />
               </div>
 
-              <div className="border-2 border-dashed border-amber-300 hover:border-amber-500 rounded-2xl p-4 text-center cursor-pointer transition-colors relative bg-amber-50/50">
-                <Upload className="w-7 h-7 text-amber-600 mx-auto mb-1.5" />
-                <p className="text-xs font-bold text-gray-800">
-                  Pilih file foto baru pengganti
-                </p>
-                <p className="text-[10px] text-gray-500">Foto akan langsung diperbarui di website</p>
+              {uploadError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+
+              <div className={`border-2 border-dashed border-amber-300 hover:border-amber-500 rounded-2xl p-4 text-center cursor-pointer transition-colors relative bg-amber-50/50 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                {isUploading ? (
+                  <div className="py-4 space-y-2">
+                    <Loader2 className="w-7 h-7 text-amber-600 mx-auto animate-spin" />
+                    <p className="text-xs font-bold text-amber-700">Mengunggah foto baru ke Storage...</p>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="w-7 h-7 text-amber-600 mx-auto mb-1.5" />
+                    <p className="text-xs font-bold text-gray-800">
+                      Pilih file foto baru pengganti
+                    </p>
+                    <p className="text-[10px] text-gray-500">Foto akan langsung diunggah ke Supabase Storage</p>
+                  </>
+                )}
                 <input
                   type="file"
                   accept="image/*"
+                  disabled={isUploading}
                   onChange={handleReplaceUpload}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />

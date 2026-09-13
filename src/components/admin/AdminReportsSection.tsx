@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useCMS } from '../../data/cmsContext';
 import { OfficialReportItem } from '../../types';
+import { uploadMediaFile } from '../../lib/supabase';
 
 export const AdminReportsSection: React.FC = () => {
   const { reports, addReport, updateReport, deleteReport } = useCMS();
@@ -25,6 +26,7 @@ export const AdminReportsSection: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -39,6 +41,32 @@ export const AdminReportsSection: React.FC = () => {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingFile(true);
+    setModalError(null);
+    try {
+      const res = await uploadMediaFile(file, 'reports', 'docs');
+      if (res.url) {
+        setDownloadUrl(res.url);
+        // compute file size in human readable format
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+        setFileSize(`${sizeMb} MB`);
+        const ext = file.name.split('.').pop()?.toUpperCase() || 'PDF';
+        setFileType(ext);
+        showToast('File laporan berhasil diunggah ke Supabase Storage!');
+      } else {
+        setModalError(res.error || 'Gagal mengunggah file ke Supabase Storage.');
+      }
+    } catch (err: any) {
+      setModalError(`Gagal upload: ${err?.message || 'Terjadi kesalahan sistem'}`);
+    } finally {
+      setIsUploadingFile(false);
+    }
   };
 
   const openAdd = () => {
@@ -342,13 +370,26 @@ export const AdminReportsSection: React.FC = () => {
 
               <div className="space-y-1">
                 <label className="font-bold text-[#071F20] block">Link Download File (URL)</label>
-                <input
-                  type="url"
-                  value={downloadUrl}
-                  onChange={(e) => setDownloadUrl(e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                  className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs outline-none"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={downloadUrl}
+                    onChange={(e) => setDownloadUrl(e.target.value)}
+                    placeholder="https://... atau unggah file di samping"
+                    className="flex-1 px-3 py-2 rounded-xl border border-gray-300 text-xs outline-none"
+                  />
+                  <label className={`px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold cursor-pointer shrink-0 flex items-center gap-1.5 ${isUploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
+                    {isUploadingFile ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#008284]" /> : <Upload className="w-3.5 h-3.5 text-[#008284]" />}
+                    <span>{isUploadingFile ? 'Mengunggah...' : 'Unggah PDF'}</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx"
+                      disabled={isUploadingFile}
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 pt-1">
